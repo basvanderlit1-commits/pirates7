@@ -1,0 +1,4 @@
+site/
+__pycache__/
+*.xlsx
+pirates 7 dashboard.html

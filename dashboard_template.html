@@ -1,0 +1,310 @@
+<title>Pirates 7 Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+:root {
+  --ground: #EEF1F5; --surface: #FFFFFF; --sunken: #F5F7FA; --line: #DDE3EB;
+  --ink: #14213D; --muted: #5E6B80; --faint: #95A0B2;
+  --accent: #B8902A; --accent-soft: #F6EDD4;
+  --win: #1E7A4C; --win-soft: #DDF0E5; --loss: #C23B3B; --loss-soft: #F8E0E0;
+  --head: #14213D; --head-ink: #FFFFFF; --head-muted: #A9B4C8;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #0D1420; --surface: #151F30; --sunken: #1A2638; --line: #26344A;
+    --ink: #E6EBF2; --muted: #9AA7BC; --faint: #66748B;
+    --accent: #D9B456; --accent-soft: #3A3120;
+    --win: #4CC38A; --win-soft: #173528; --loss: #EF6B6B; --loss-soft: #3B1C1F;
+    --head: #0A101A; --head-ink: #F2F5F9; --head-muted: #8795AC;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #0D1420; --surface: #151F30; --sunken: #1A2638; --line: #26344A;
+  --ink: #E6EBF2; --muted: #9AA7BC; --faint: #66748B;
+  --accent: #D9B456; --accent-soft: #3A3120;
+  --win: #4CC38A; --win-soft: #173528; --loss: #EF6B6B; --loss-soft: #3B1C1F;
+  --head: #0A101A; --head-ink: #F2F5F9; --head-muted: #8795AC;
+}
+* { box-sizing: border-box; }
+body { background: var(--ground); color: var(--ink); font: 15px/1.45 var(--body); font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 0 48px; }
+
+/* kopbalk */
+header.top { background: var(--head); color: var(--head-ink); }
+header.top .wrap { padding-block: 26px 22px; display: flex; flex-wrap: wrap; gap: 18px 32px; align-items: flex-end; justify-content: space-between; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--head-muted); }
+h1 { font: 700 clamp(40px, 7vw, 64px)/.9 var(--display); letter-spacing: .01em; margin: 6px 0 0; text-transform: uppercase; }
+h1 span { color: var(--accent); }
+.next { border-left: 3px solid var(--accent); padding-left: 14px; }
+.next b { display: block; font: 600 22px/1.1 var(--display); letter-spacing: .02em; margin-top: 4px; }
+.next small { color: var(--head-muted); }
+
+/* kerncijfers */
+.kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-block: 22px; }
+.kpi { background: var(--surface); padding: 14px 16px 12px; }
+.kpi .lbl { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.kpi .val { font: 700 44px/1 var(--display); margin-top: 6px; }
+.kpi .sub { font-size: 13px; color: var(--muted); }
+.kpi.lead .val { color: var(--accent); }
+
+/* panelen */
+.grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; min-width: 0; }
+.panel + .panel, .grid + .panel, .panel + .grid { margin-top: 20px; }
+h2 { font: 600 24px/1 var(--display); letter-spacing: .03em; text-transform: uppercase; margin: 0; }
+.ph { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.ph small { color: var(--muted); font-size: 13px; }
+.scroll { overflow-x: auto; }
+
+/* tabellen */
+table { width: 100%; border-collapse: collapse; }
+th { font: 600 11.5px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 0 10px 8px; border-bottom: 2px solid var(--ink); white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th.n, td.n { text-align: right; }
+th.c, td.c { text-align: center; }
+tr.ours td { background: var(--accent-soft); font-weight: 700; }
+tr.ours td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* W/V */
+.pill { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 7px; border-radius: 4px; font: 700 13px/1 var(--body); }
+.pill.W { background: var(--win-soft); color: var(--win); }
+.pill.V { background: var(--loss-soft); color: var(--loss); }
+.form { display: flex; gap: 6px; }
+.form .pill { width: 30px; height: 30px; border-radius: 50%; }
+
+/* grafiek */
+svg text { fill: var(--muted); font: 12px var(--body); }
+svg .val { fill: var(--ink); font: 600 15px var(--display); }
+.legend { display: flex; gap: 16px; font-size: 13px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+/* spelers */
+.bar { display: flex; align-items: center; gap: 8px; min-width: 130px; }
+.bar .track { flex: 1; height: 6px; background: var(--sunken); border-radius: 3px; overflow: hidden; min-width: 50px; }
+.bar .fill { height: 100%; background: var(--win); border-radius: 3px; }
+.bar .num { font-size: 13px; color: var(--muted); width: 60px; text-align: right; }
+.bar .num b { color: var(--ink); }
+.role { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-left: 6px; }
+.plus { color: var(--win); } .min { color: var(--loss); }
+
+/* programma */
+.tabs { display: flex; gap: 4px; background: var(--sunken); padding: 3px; border-radius: 7px; }
+.tabs button { font: 600 13px var(--body); color: var(--muted); background: none; border: 0; padding: 6px 12px; border-radius: 5px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+details.match { border-bottom: 1px solid var(--line); }
+details.match summary { list-style: none; display: grid; grid-template-columns: 44px 92px minmax(0,1fr) 56px 74px 40px 18px; gap: 10px; align-items: center; padding: 10px 4px; cursor: pointer; }
+details.match summary::-webkit-details-marker { display: none; }
+details.match summary:hover { background: var(--sunken); }
+.chev { color: var(--faint); transition: transform .15s; }
+details[open] .chev { transform: rotate(90deg); }
+.rnd { font: 600 17px var(--display); color: var(--muted); }
+.opp { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.score { font: 700 22px/1 var(--display); text-align: center; }
+.tu { font-size: 13px; color: var(--muted); }
+.todo summary { cursor: default; } .todo .opp { font-weight: 400; } .todo .chev { visibility: hidden; }
+.detail { padding: 4px 4px 16px 58px; }
+.detail .meta { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+.detail .meta a { color: var(--accent); font-weight: 600; }
+.games { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px 24px; }
+.games h4 { font: 600 13px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+.game { display: grid; grid-template-columns: minmax(0,1fr) 44px minmax(0,1fr) 30px; gap: 8px; align-items: center; font-size: 13.5px; padding: 5px 0; border-bottom: 1px dashed var(--line); }
+.game .us { font-weight: 600; } .game .them { color: var(--muted); } .game .legs { text-align: center; font-weight: 700; }
+
+/* chips */
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip { border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: var(--sunken); }
+.chip b { display: block; font: 700 30px/1 var(--display); color: var(--accent); }
+.chip span { font-size: 13px; color: var(--muted); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+footer { margin-top: 24px; font-size: 13px; color: var(--muted); }
+footer a { color: var(--muted); }
+
+@media (max-width: 980px) { .grid, .two { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (max-width: 560px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  details.match summary { grid-template-columns: 34px minmax(0,1fr) 62px 36px 14px; }
+  details.match summary .dt, details.match summary .tu { display: none; }
+  .detail { padding-left: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+</style>
+
+<header class="top"><div class="wrap">
+  <div>
+    <div class="eyebrow" id="meta"></div>
+    <h1 id="title"></h1>
+  </div>
+  <div class="next" id="next"></div>
+</div></header>
+
+<main class="wrap">
+  <section class="kpis" id="kpis" aria-label="Kerncijfers"></section>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="ph"><h2>Punten per avond</h2><div class="form" id="form" aria-label="Vorm, laatste vijf"></div></div>
+      <div id="chart"></div>
+      <div class="legend"><span><i style="background:var(--win)"></i>Gewonnen</span><span><i style="background:var(--loss)"></i>Verloren</span><span>Stippellijn = winstgrens (5 van 9)</span></div>
+    </section>
+    <section class="panel">
+      <div class="ph"><h2 id="standTitle">Stand</h2><small id="standSub"></small></div>
+      <div class="scroll"><table id="stand"></table></div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="ph"><h2>Spelers</h2><small>Winst in partijen, incl. beker · legs voor/tegen</small></div>
+    <div class="scroll"><table id="spelers"></table></div>
+  </section>
+
+  <section class="panel">
+    <div class="ph">
+      <h2>Programma &amp; uitslagen</h2>
+      <div class="tabs" role="tablist">
+        <button role="tab" id="tab-gespeeld" aria-selected="true" data-f="gespeeld">Gespeeld</button>
+        <button role="tab" id="tab-todo" aria-selected="false" data-f="todo">Nog te spelen</button>
+        <button role="tab" id="tab-alles" aria-selected="false" data-f="alles">Alles</button>
+      </div>
+    </div>
+    <div id="programma"></div>
+  </section>
+
+  <div class="two" style="margin-top:20px">
+    <section class="panel">
+      <div class="ph"><h2>Bijzondere resultaten</h2></div>
+      <div class="chips" id="bijz"></div>
+    </section>
+    <section class="panel">
+      <div class="ph"><h2>Persoonlijk klassement</h2><small id="pkSub"></small></div>
+      <div class="scroll"><table id="pk"></table></div>
+    </section>
+  </div>
+
+  <footer id="foot"></footer>
+</main>
+
+<script>
+const D = /*DATA*/null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const nl = (v, d = 1) => Number(v).toLocaleString("nl-NL", {minimumFractionDigits: d, maximumFractionDigits: d});
+const pct = (w, n) => n ? Math.round(100 * w / n) : null;
+const pill = r => r ? `<span class="pill ${r}">${r}</span>` : "";
+const played = D.matches.filter(m => m.uitslag);
+const todo = D.matches.filter(m => !m.uitslag);
+const comp = played.filter(m => !m.ronde.startsWith("b"));
+const me = D.stand.find(s => s.team === D.team) || {};
+const kort = d => d.slice(0, 5);
+
+// kop
+$("meta").textContent = `Divisie ${D.div} · Seizoen ${D.seizoen} · DBMN`;
+$("title").innerHTML = esc(D.team).replace(/(\d+)$/, "<span>$1</span>");
+const nx = todo[0];
+$("next").innerHTML = nx
+  ? `<div class="eyebrow">Volgende wedstrijd</div><b>${esc(nx.tegen)}</b><small>${esc(nx.datum)} · ${nx.tu.toLowerCase()} · ronde ${esc(nx.ronde)}</small>`
+  : `<div class="eyebrow">Seizoen</div><b>Afgelopen</b>`;
+
+// kerncijfers
+const gW = D.games.filter(g => g.uitslag === "W").length;
+const n180 = D.spelers.reduce((a, s) => a + s.n180, 0);
+const kpis = [
+  ["Positie", `${me.pos}e`, `van ${D.stand.length} teams`, true],
+  ["Punten", me.pnt, `${comp.length} wedstrijden`],
+  ["Gemiddeld", nl(me.gem), "punten per avond"],
+  ["Winst / verlies", `${me.w}–${me.v}`, "competitie"],
+  ["Partijen gewonnen", `${pct(gW, D.games.length)}%`, `${gW} van ${D.games.length}, incl. beker`],
+  ["180's", n180, `${todo.length} avonden te gaan`],
+];
+$("kpis").innerHTML = kpis.map(([l, v, s, lead]) =>
+  `<div class="kpi${lead ? " lead" : ""}"><div class="lbl">${l}</div><div class="val">${esc(v)}</div><div class="sub">${esc(s)}</div></div>`).join("");
+
+// vorm
+$("form").innerHTML = played.slice(-5).map(m => `<span class="pill ${m.uitslag}" title="${esc(m.tegen)} ${m.wij}-${m.zij}">${m.uitslag}</span>`).join("");
+
+// grafiek: punten per avond (0-9)
+(function chart() {
+  const W = 620, H = 230, L = 30, R = 10, T = 22, B = 44, max = 9;
+  const n = Math.max(played.length, 1), slot = (W - L - R) / n, bw = Math.min(46, slot * .6);
+  const y = v => T + (H - T - B) * (1 - v / max);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Punten per avond">`;
+  for (const v of [0, 3, 6, 9]) s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  s += `<line x1="${L}" x2="${W - R}" y1="${y(4.5)}" y2="${y(4.5)}" stroke="var(--accent)" stroke-dasharray="4 4"/>`;
+  played.forEach((m, i) => {
+    const cx = L + slot * (i + .5), top = y(m.wij);
+    const col = m.uitslag === "W" ? "var(--win)" : "var(--loss)";
+    s += `<rect x="${cx - bw / 2}" y="${top}" width="${bw}" height="${y(0) - top}" rx="3" fill="${col}"><title>${esc(m.tegen)}: ${m.wij}-${m.zij}</title></rect>`;
+    s += `<text class="val" x="${cx}" y="${top - 6}" text-anchor="middle">${m.wij}</text>`;
+    s += `<text x="${cx}" y="${H - B + 18}" text-anchor="middle">${m.ronde.startsWith("b") ? "Beker" : "R" + m.ronde}</text>`;
+    s += `<text x="${cx}" y="${H - B + 33}" text-anchor="middle">${kort(m.datum)}</text>`;
+  });
+  $("chart").innerHTML = s + "</svg>";
+})();
+
+// stand
+$("standTitle").textContent = `Stand ${D.div}`;
+$("standSub").textContent = `${D.stand.length} teams`;
+$("stand").innerHTML = `<thead><tr><th class="n">#</th><th>Team</th><th class="n">Gesp.</th><th class="n">W</th><th class="n">V</th><th class="n">Pnt</th><th class="n">Gem.</th></tr></thead><tbody>` +
+  D.stand.map(s => `<tr class="${s.team === D.team ? "ours" : ""}"><td class="n">${s.pos}</td><td>${esc(s.team)}</td><td class="n">${s.wed}</td><td class="n">${s.w}</td><td class="n">${s.v}</td><td class="n"><b>${s.pnt}</b></td><td class="n">${nl(s.gem)}</td></tr>`).join("") + "</tbody>";
+
+// spelers
+const bar = ([g, w]) => g
+  ? `<div class="bar"><div class="track"><div class="fill" style="width:${pct(w, g)}%"></div></div><span class="num"><b>${w}</b>/${g} · ${pct(w, g)}%</span></div>`
+  : `<span style="color:var(--faint)">–</span>`;
+const saldo = s => { const d = s.s[2] + s.k[2] + s.rr[2] - s.s[3] - s.k[3] - s.rr[3]; return `<span class="${d > 0 ? "plus" : d < 0 ? "min" : ""}">${d > 0 ? "+" : ""}${d}</span>`; };
+const spelers = [...D.spelers].sort((a, b) => (b.s[1] + b.k[1] + b.rr[1]) - (a.s[1] + a.k[1] + a.rr[1]));
+$("spelers").innerHTML = `<thead><tr><th>Speler</th><th>Singles</th><th>Koppels</th><th>Round robin</th><th class="n">Legs</th><th class="n">Saldo</th><th class="c">180</th><th class="c">Finish</th></tr></thead><tbody>` +
+  spelers.map(s => {
+    const lv = s.s[2] + s.k[2] + s.rr[2], lt = s.s[3] + s.k[3] + s.rr[3];
+    const rol = s.rol === "Captain" ? "C" : s.rol === "Reserve captain" ? "RC" : "";
+    return `<tr><td><b>${esc(s.naam)}</b>${rol ? `<span class="role" title="${esc(s.rol)}">${rol}</span>` : ""}</td><td>${bar(s.s)}</td><td>${bar(s.k)}</td><td>${bar(s.rr)}</td><td class="n">${lv}–${lt}</td><td class="n">${saldo(s)}</td><td class="c">${s.n180 || "–"}</td><td class="c">${s.finishes.join(", ") || "–"}</td></tr>`;
+  }).join("") + "</tbody>";
+
+// programma
+const TYPES = [["RR", "Round robin 301"], ["Single", "Singles"], ["Koppel", "Koppels"], ["Team", "Team"]];
+function matchHtml(m) {
+  const dt = `<span class="dt">${esc(m.datum)}</span>`;
+  const rn = `<span class="rnd">${m.ronde.startsWith("b") ? "B" : esc(m.ronde)}</span>`;
+  if (!m.uitslag) return `<details class="match todo"><summary tabindex="-1">${rn}${dt}<span class="opp">${esc(m.tegen)}</span><span class="tu">${m.tu}</span><span class="score" style="color:var(--faint)">–</span><span></span><span class="chev">›</span></summary></details>`;
+  const gs = D.games.filter(g => g.ronde === m.ronde);
+  const groups = TYPES.map(([t, label]) => {
+    const list = gs.filter(g => g.type === t);
+    if (!list.length) return "";
+    return `<div><h4>${label}</h4>` + list.map(g => `<div class="game" title="${esc(g.onderdeel)}"><span class="us">${esc(g.wij)}</span><span class="legs">${g.lw}–${g.lz}</span><span class="them">${esc(g.zij)}</span>${pill(g.uitslag)}</div>`).join("") + "</div>";
+  }).join("");
+  return `<details class="match"><summary>${rn}${dt}<span class="opp">${esc(m.tegen)}${m.ronde.startsWith("b") ? ' <span class="tu">· beker</span>' : ""}</span><span class="tu">${m.tu}</span><span class="score">${m.wij}–${m.zij}</span>${pill(m.uitslag)}<span class="chev">›</span></summary>
+    <div class="detail"><div class="meta">${esc(m.locatie)}${m.form ? ` · <a href="${esc(m.form)}" target="_blank" rel="noopener">Wedstrijdformulier ↗</a>` : ""}</div><div class="games">${groups}</div></div></details>`;
+}
+function showProgramma(f) {
+  const list = f === "gespeeld" ? [...played].reverse() : f === "todo" ? todo : D.matches;
+  $("programma").innerHTML = list.map(matchHtml).join("") || `<p style="color:var(--muted)">Geen wedstrijden.</p>`;
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.f === f));
+  try { localStorage.setItem("p7tab", f); } catch (e) {}
+}
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => showProgramma(b.dataset.f)));
+let startTab = "gespeeld";
+try { startTab = localStorage.getItem("p7tab") || startTab; } catch (e) {}
+showProgramma(startTab);
+
+// bijzondere resultaten
+const rank = D.bijzrank.reduce((a, r) => (a[r.speler + r.lijst] = r.pos, a), {});
+$("bijz").innerHTML = D.bijz.map(b => {
+  const is180 = /180/.test(b.prestatie);
+  const pos = rank[b.speler + (is180 ? "180ers" : "Hoogste finishes")];
+  return `<div class="chip"><b>${is180 ? "180" : esc(b.prestatie.replace(" finish", ""))}</b><span>${is180 ? "maximum" : "finish"} · ${esc(b.speler)}<br>${esc(b.datum)}${pos ? ` · #${pos} in ${D.div}` : ""}</span></div>`;
+}).join("") || `<p style="color:var(--muted)">Nog geen 180's of hoge finishes.</p>`;
+
+// persoonlijk klassement
+$("pkSub").textContent = `positie in divisie ${D.div}`;
+const names = [...new Set([...D.pk.Singles, ...D.pk.Koppels].map(r => r.naam))];
+const pos = (lst, n) => { const r = lst.find(x => x.naam === n); return r ? `<b>${r.pos}</b> <span style="color:var(--muted)">(${r.pct}%)</span>` : "–"; };
+$("pk").innerHTML = `<thead><tr><th>Speler</th><th class="n">Singles</th><th class="n">Koppels</th></tr></thead><tbody>` +
+  names.map(n => `<tr><td>${esc(n)}</td><td class="n">${pos(D.pk.Singles, n)}</td><td class="n">${pos(D.pk.Koppels, n)}</td></tr>`).join("") + "</tbody>";
+
+$("foot").innerHTML = `Bijgewerkt ${esc(D.bijgewerkt)} · Captain ${esc(D.captain)} · Thuislocatie ${esc(D.locatie)} · Bron: <a href="${esc(D.bron)}" target="_blank" rel="noopener">teambeheer.nl</a>`;
+</script>

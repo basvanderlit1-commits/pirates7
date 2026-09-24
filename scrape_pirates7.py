@@ -1,5 +1,6 @@
-"""Haalt alle data van Pirates 7 (DBMN, via feeds.teambeheer.nl) op en schrijft 'pirates 7 resultaten.xlsx'.
-Opnieuw draaien = bijgewerkte Excel. Seizoen/team-id hieronder aanpassen voor een nieuw seizoen."""
+"""Haalt alle data van Pirates 7 (DBMN, via feeds.teambeheer.nl) op en schrijft
+'pirates 7 resultaten.xlsx' en het dashboard in site/ (GitHub Pages).
+Seizoen, team-id en divisie worden automatisch opgezocht; alleen TEAM moet kloppen met de naam op teambeheer."""
 import json
 import re
 import shutil
@@ -9,17 +10,22 @@ import requests
 from bs4 import BeautifulSoup
 from openpyxl import Workbook
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
+from requests.adapters import HTTPAdapter, Retry
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 B = "https://feeds.teambeheer.nl"
-D, S, TEAM_ID, TEAM, DIV = 41, "26-27", 84086521, "Pirates 7", "4A"
+D, TEAM = 41, "Pirates 7"  # D = DBMN op teambeheer
 OUT = "pirates 7 resultaten.xlsx"
-DASH = "pirates 7 dashboard.html"
+http = requests.Session()
+http.mount("https://", HTTPAdapter(max_retries=Retry(total=4, backoff_factor=2, status_forcelist=[429, 500, 502, 503, 504])))
 
 
 def get(path, full=False):
-    raw = requests.get(B + path, timeout=30).content
+    r = http.get(B + path, timeout=30)
+    r.raise_for_status()
+    raw = r.content
     try:
         html = raw.decode("utf-8")
     except UnicodeDecodeError:  # sommige namen staan er in cp1252 in
@@ -57,8 +63,13 @@ def header_table(soup, first_col):
             return t
 
 
-# ---------- team page ----------
+# ---------- team opzoeken in het huidige seizoen ----------
+link = get(f"/web/teams?d={D}", full=True).find("a", string=lambda t: t and t.strip() == TEAM)
+if not link:
+    raise SystemExit(f"Team '{TEAM}' niet gevonden op {B}/web/teams?d={D} - klopt de naam nog?")
+TEAM_ID, S = re.search(r"t=(\d+)&s=([\d-]+)", link["href"]).groups()
 team = get(f"/web/team?d={D}&t={TEAM_ID}&s={S}")
+DIV = re.search(r"Divisie (\w+)", txt(team.find("a", href=re.compile(r"/web/stand")))).group(1)
 wed_tab = team.find("table")
 matches = []
 for tr in wed_tab.find("tbody").find_all("tr"):
@@ -74,7 +85,8 @@ for tr in wed_tab.find("tbody").find_all("tr"):
         mine, theirs = (h, u) if home == TEAM else (u, h)
         res = "W" if mine > theirs else "V" if mine < theirs else "G"
     matches.append(dict(ronde=txt(td[0]), datum=txt(td[1]), thuis=home, uit=away, score=score,
-                        uitslag=res, form=a["href"] if a else None))
+                        uitslag=res, form=a["href"] if a else None,
+                        vrij=not re.fullmatch(r"\d{2}-\d{2}-\d{4}", txt(td[1]))))  # bv. "Vrije week" in de beker
 
 spelers = []
 for tr in header_table(team, "Naam").find("tbody").find_all("tr"):
@@ -151,7 +163,8 @@ fill = lambda c: PatternFill("solid", fgColor=c)
 ZEBRA, OURS, TILE = fill("F2F5FA"), fill("FFF2CC"), fill("F2F5FA")
 WV = {"W": (fill("E2F0D9"), "375623"), "V": (fill("FBE3E4"), "9C0006"), "G": (fill("FFF2CC"), "7F6000")}
 LINE = Side(style="thin", color="D9DEE8")
-TODAY = date.today().strftime("%d-%m-%Y")
+NOW = datetime.now(ZoneInfo("Europe/Amsterdam"))
+TODAY = NOW.strftime("%d-%m-%Y")
 wb = Workbook()
 wb.remove(wb.active)
 
@@ -253,7 +266,7 @@ def line(ws, row, cols, values, fonts=None):
 # --- data voorbereiden ---
 comp = [m for m in matches if m["uitslag"] and not m["ronde"].startswith("b")]
 played = [m for m in matches if m["uitslag"]]
-todo = [m for m in matches if not m["uitslag"]]
+todo = [m for m in matches if not m["uitslag"] and not m["vrij"]]
 my_row = next(r for r in stand[1:] if TEAM in r)
 for m in matches:
     thuis = m["thuis"] == TEAM
@@ -384,6 +397,9 @@ table(ws, end + 3, ["Lijst", "Positie", "Speler", "Aantal / waarde"],
       [[name, num(r[0]), r[1], num(r[4])] for name, tab in bijz_lists.items() for r in ours_only(tab, 2)], left=(0, 2), frozen=False)
 
 wb.active = 0
+site = Path("site")
+site.mkdir(exist_ok=True)
+wb.save(site / "pirates7-resultaten.xlsx")  # download op de website
 try:
     wb.save(OUT)
 except PermissionError:
@@ -393,11 +409,11 @@ except PermissionError:
 kind = lambda o: "RR" if o.startswith("RR") else "Single" if o.startswith(("Single", "Singel")) else \
     "Koppel" if o.startswith("Koppel") else "Team"
 dash = dict(
-    team=TEAM, div=DIV, seizoen=S, bijgewerkt=TODAY, locatie=locatie.replace(" | ", ", "),
+    team=TEAM, div=DIV, seizoen=S, bijgewerkt=NOW.strftime("%d-%m-%Y %H:%M"), locatie=locatie.replace(" | ", ", "),
     captain=role("Captain"), rc=role("Reserve captain"), bron=f"{B}/web/team?d={D}&t={TEAM_ID}&s={S}",
     stand=[dict(pos=num(r[0]), team=r[1], wed=num(r[2]), w=num(r[3]), v=num(r[4]), pnt=num(r[5]), gem=num(r[6]))
            for r in stand[1:] if any(r)],
-    matches=[dict(ronde=m["ronde"], datum=m["datum"], tegen=m["tegen"], tu=m["tu"], uitslag=m["uitslag"],
+    matches=[dict(ronde=m["ronde"], datum=m["datum"], tegen=m["tegen"], tu=m["tu"], uitslag=m["uitslag"], vrij=m["vrij"],
                   wij=int(m["wijzij"].split(" - ")[0]) if m["score"] else None,
                   zij=int(m["wijzij"].split(" - ")[1]) if m["score"] else None,
                   locatie=m.get("locatie", "").replace(" | ", ", "), form=B + m["form"] if m["form"] else None)
@@ -419,19 +435,7 @@ dash = dict(
 )
 tpl = (Path(__file__).parent / "dashboard_template.html").read_text(encoding="utf-8")
 data = json.dumps(dash, ensure_ascii=False).replace("</", "<\\/")
-page = tpl.replace("/*DATA*/null", data)
-Path(DASH).write_text(page, encoding="utf-8")  # Claude-artifact: zonder <head>, die voegt de viewer toe
-
-# website (GitHub Pages): zelfde pagina met eigen <head> voor mobiel en "zet op beginscherm"
-site = Path("site")
-site.mkdir(exist_ok=True)
-head = ('<!doctype html><html lang="nl"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
-        '<meta name="robots" content="noindex"><meta name="theme-color" content="#14213D">'
-        '<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png">'
-        '<link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes">'
-        '<meta name="apple-mobile-web-app-title" content="Pirates 7"></head><body style="margin:0">')
-(site / "index.html").write_text(head + page + "</body></html>", encoding="utf-8")
+(site / "index.html").write_text(tpl.replace("/*DATA*/null", data), encoding="utf-8")
 for f in (Path(__file__).parent / "web").iterdir():
     shutil.copy(f, site / f.name)
-print("OK", len(matches), "wedstrijden,", len(games), "partijen,", len(spelers), "spelers")
+print("OK", TEAM, S, DIV, "-", len(matches), "wedstrijden,", len(games), "partijen,", len(spelers), "spelers")

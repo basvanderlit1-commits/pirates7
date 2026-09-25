@@ -276,6 +276,8 @@ for m in matches:
         m["wijzij"] = f"{h} - {u}" if thuis else f"{u} - {h}"
 role = lambda r: ", ".join(s["naam"] for s in spelers if s["rol"] == r) or "–"
 ours_only = lambda tab, col: [r for r in tab[1:] if len(r) > col and r[col] == TEAM]
+pk_count = lambda tab: sum(1 for r in tab[1:] if len(r) > 2)  # aantal spelers in het klassement
+won = lambda r: round(num(r[3]) * num(r[6]) / 100)  # gewonnen partijen = gespeeld x winst%
 
 # --- Overzicht (dashboard) ---
 ws = new_sheet("Overzicht", f"{TEAM}  –  Seizoensoverzicht", [17] + [13] * 11)
@@ -379,12 +381,15 @@ ws.cell(end + 2, 2, "Blokken 'incl. beker' zijn berekend uit de wedstrijdformuli
 
 # --- Persoonlijk klassement ---
 ws = new_sheet("Persoonlijk klassement", "Persoonlijk klassement", [13, 26, 10, 9, 9, 10])
-row = 4
+ws["B3"] = (f"Positie tussen alle spelers van divisie {DIV} (1e = beste). Alleen competitie, zonder beker. "
+            "Bij gelijk winstpercentage staat wie meer partijen speelde hoger.")
+ws["B3"].font = Font(name=FONT, size=10, color=GREY)
+row = 5
 for label, tab in [("Singles", pk_single), ("Koppels", pk_koppel)]:
     section(ws, row, 2, label, 6)
-    rows_ = [[num(r[0]), r[1], num(r[3]), num(r[4]), num(r[5]), pct(r[6])] for r in ours_only(tab, 2)]
-    row = table(ws, row + 1, [f"Positie in {DIV}", "Speler", label, "Legs +", "Legs −", "Winst%"], rows_,
-                left=(1,), fmt={5: "0%"}, frozen=False) + 2
+    rows_ = [[f"{num(r[0])}e van {pk_count(tab)}", r[1], num(r[3]), won(r), pct(r[6])] for r in ours_only(tab, 2)]
+    row = table(ws, row + 1, ["Positie", "Speler", "Gespeeld", "Gewonnen", "Winst%"], rows_,
+                left=(1,), fmt={4: "0%"}, frozen=False) + 2
 
 # --- Bijzondere resultaten ---
 ws = new_sheet("Bijzondere resultaten", "Bijzondere resultaten", [16, 12, 26, 16])
@@ -426,8 +431,9 @@ dash = dict(
                   n180=sum("180" in b["prestatie"] for b in bijz if b["speler"] == s["naam"]),
                   finishes=[b["prestatie"].replace(" finish", "") for b in bijz
                             if b["speler"] == s["naam"] and "finish" in b["prestatie"]]) for s in spelers],
-    pk={label: [dict(pos=num(r[0]), naam=r[1], n=num(r[3]), voor=num(r[4]), tegen=num(r[5]), pct=num(r[6]))
+    pk={label: [dict(pos=num(r[0]), naam=r[1], n=num(r[3]), w=won(r), pct=num(r[6]))
                 for r in ours_only(tab, 2)] for label, tab in [("Singles", pk_single), ("Koppels", pk_koppel)]},
+    pk_totaal={"Singles": pk_count(pk_single), "Koppels": pk_count(pk_koppel)},
     bijz=[dict(ronde=b["ronde"], datum=b["datum"], speler=b["speler"], prestatie=b["prestatie"])
           for b in bijz if b["team"] == TEAM],
     bijzrank=[dict(lijst=name, pos=num(r[0]), speler=r[1], waarde=num(r[4]))

@@ -387,7 +387,7 @@ ws["B3"].font = Font(name=FONT, size=10, color=GREY)
 row = 5
 for label, tab in [("Singles", pk_single), ("Koppels", pk_koppel)]:
     section(ws, row, 2, label, 6)
-    rows_ = [[f"{num(r[0])}e van {pk_count(tab)}", r[1], num(r[3]), won(r), pct(r[6])] for r in ours_only(tab, 2)]
+    rows_ = [[f"#{num(r[0])}e van {pk_count(tab)} in {DIV}", r[1], num(r[3]), won(r), pct(r[6])] for r in ours_only(tab, 2)]
     row = table(ws, row + 1, ["Positie", "Speler", "Gespeeld", "Gewonnen", "Winst%"], rows_,
                 left=(1,), fmt={4: "0%"}, frozen=False) + 2
 
@@ -399,7 +399,7 @@ end = table(ws, 5, ["Ronde", "Datum", "Speler", "Prestatie"],
             left=(2,), fmt={1: "dd-mm-yyyy"}, frozen=False)
 section(ws, end + 2, 2, f"Positie in klassement {DIV}", 4)
 table(ws, end + 3, ["Lijst", "Positie", "Speler", "Aantal / waarde"],
-      [[name, num(r[0]), r[1], num(r[4])] for name, tab in bijz_lists.items() for r in ours_only(tab, 2)], left=(0, 2), frozen=False)
+      [[name, f"#{num(r[0])}e in {DIV}", r[1], num(r[4])] for name, tab in bijz_lists.items() for r in ours_only(tab, 2)], left=(0, 2), frozen=False)
 
 wb.active = 0
 site = Path("site")

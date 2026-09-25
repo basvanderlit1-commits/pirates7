@@ -395,17 +395,17 @@ const rank = D.bijzrank.reduce((a, r) => (a[r.speler + r.lijst] = r.pos, a), {})
 $("bijz").innerHTML = D.bijz.map(b => {
   const is180 = /180/.test(b.prestatie);
   const pos = rank[b.speler + (is180 ? "180ers" : "Hoogste finishes")];
-  return `<div class="chip"><b>${is180 ? "180" : esc(b.prestatie.replace(" finish", ""))}</b><span>${is180 ? "maximum" : "finish"} · ${esc(b.speler)}<br>${esc(b.datum)}${pos ? ` · #${pos} in ${D.div}` : ""}</span></div>`;
+  return `<div class="chip"><b>${is180 ? "180" : esc(b.prestatie.replace(" finish", ""))}</b><span>${is180 ? "maximum" : "finish"} · ${esc(b.speler)}<br>${esc(b.datum)}${pos ? ` · #${pos}e in ${D.div}` : ""}</span></div>`;
 }).join("") || `<p class="empty">Nog geen 180's of hoge finishes.</p>`;
 
 // ---- persoonlijk klassement ----
-$("pkSub").textContent = `divisie ${D.div} · 1e = beste`;
+$("pkSub").textContent = `positie in ${D.div} · #1e = beste`;
 $("pkNote").textContent = `Positie tussen alle spelers van divisie ${D.div}: ${D.pk_totaal.Singles} in de singles, ${D.pk_totaal.Koppels} in de koppels. Alleen competitie, zonder beker. Bij gelijk winstpercentage staat wie meer partijen speelde hoger.`;
 const names = [...new Set([...D.pk.Singles, ...D.pk.Koppels].map(r => r.naam))];
 const pos = (label, n) => {
   const r = D.pk[label].find(x => x.naam === n);
   if (!r) return `<span class="dim">nog niet gespeeld</span>`;
-  return `<div class="rk${r.pos <= 3 ? " top" : ""}"><b>${r.pos}e</b> <span class="of">van ${D.pk_totaal[label]}</span></div><small>${r.w} van ${r.n} gewonnen · ${nl(r.pct, 0)}%</small>`;
+  return `<div class="rk${r.pos <= 3 ? " top" : ""}"><b>#${r.pos}e</b> <span class="of">van ${D.pk_totaal[label]} in ${D.div}</span></div><small>${r.w} van ${r.n} gewonnen · ${nl(r.pct, 0)}%</small>`;
 };
 $("pk").innerHTML = `<thead><tr><th>Speler</th><th>Singles</th><th>Koppels</th></tr></thead><tbody>` +
   names.map(n => `<tr><td><b>${esc(n)}</b></td><td data-label="Singles">${pos("Singles", n)}</td><td data-label="Koppels">${pos("Koppels", n)}</td></tr>`).join("") + "</tbody>";

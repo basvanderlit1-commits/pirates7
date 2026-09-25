@@ -3,6 +3,7 @@
 Seizoen, team-id en divisie worden automatisch opgezocht; alleen TEAM moet kloppen met de naam op teambeheer."""
 import hashlib
 import json
+import os
 import re
 import shutil
 from collections import defaultdict
@@ -19,6 +20,8 @@ from openpyxl.utils import get_column_letter
 B = "https://feeds.teambeheer.nl"
 D, TEAM = 41, "Pirates 7"  # D = DBMN op teambeheer
 OUT = "pirates 7 resultaten.xlsx"
+SITE_URL = "https://basvanderlit1-commits.github.io/pirates7/"
+NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "pirates7-dbmn-uitslagen")  # abonneren in de gratis app ntfy
 http = requests.Session()
 http.mount("https://", HTTPAdapter(max_retries=Retry(total=4, backoff_factor=2, status_forcelist=[429, 500, 502, 503, 504])))
 
@@ -71,32 +74,45 @@ if not link:
 TEAM_ID, S = re.search(r"t=(\d+)&s=([\d-]+)", link["href"]).groups()
 team = get(f"/web/team?d={D}&t={TEAM_ID}&s={S}")
 DIV = re.search(r"Divisie (\w+)", txt(team.find("a", href=re.compile(r"/web/stand")))).group(1)
-wed_tab = team.find("table")
-matches = []
-for tr in wed_tab.find("tbody").find_all("tr"):
-    td = tr.find_all("td")
-    if len(td) < 5:
-        continue
-    a = td[4].find("a")
-    score = txt(a) if a else ""
-    home, away = txt(td[2]), txt(td[3])
-    res = ""
-    if score:
-        h, u = map(int, score.split("-"))
-        mine, theirs = (h, u) if home == TEAM else (u, h)
-        res = "W" if mine > theirs else "V" if mine < theirs else "G"
-    matches.append(dict(ronde=txt(td[0]), datum=txt(td[1]), thuis=home, uit=away, score=score,
-                        uitslag=res, form=a["href"] if a else None,
-                        vrij=not re.fullmatch(r"\d{2}-\d{2}-\d{4}", txt(td[1]))))  # bv. "Vrije week" in de beker
 
-spelers = []
-for tr in header_table(team, "Naam").find("tbody").find_all("tr"):
-    td = tr.find_all("td")
-    a = td[0].find("a")
-    rol = txt(td[0].find("b"))
-    spelers.append(dict(naam=txt(a), rol={"C": "Captain", "RC": "Reserve captain"}.get(rol, rol),
-                        id=re.search(r"l=(\d+)", a["href"]).group(1), singles=num(txt(td[1])), winst=num(txt(td[2]))))
-locatie = " | ".join(s.strip() for s in team.find(string="Locatie").find_parent().find_next("p").stripped_strings)
+
+def parse_team(page, name):
+    """Wedstrijden, spelers en speellocatie van een teampagina (ons team of een tegenstander)."""
+    ms = []
+    for tr in header_table(page, "#").find("tbody").find_all("tr"):
+        td = tr.find_all("td")
+        if len(td) < 5:
+            continue
+        a = td[4].find("a")
+        score = txt(a) if a else ""
+        home, away = txt(td[2]), txt(td[3])
+        res = ""
+        if score:
+            h, u = map(int, score.split("-"))
+            mine, theirs = (h, u) if home == name else (u, h)
+            res = "W" if mine > theirs else "V" if mine < theirs else "G"
+        opp = (td[3] if home == name else td[2]).find("a")
+        ms.append(dict(ronde=txt(td[0]), datum=txt(td[1]), thuis=home, uit=away, score=score,
+                       uitslag=res, form=a["href"] if a else None,
+                       tegen_id=re.search(r"t=(\d+)", opp["href"]).group(1) if opp else None,
+                       vrij=not re.fullmatch(r"\d{2}-\d{2}-\d{4}", txt(td[1]))))  # bv. "Vrije week" in de beker
+    players = []
+    for tr in header_table(page, "Naam").find("tbody").find_all("tr"):
+        td = tr.find_all("td")
+        a = td[0].find("a")
+        rol = txt(td[0].find("b"))
+        players.append(dict(naam=txt(a), rol={"C": "Captain", "RC": "Reserve captain"}.get(rol, rol),
+                            id=re.search(r"l=(\d+)", a["href"]).group(1), singles=num(txt(td[1])), winst=num(txt(td[2]))))
+    loc = page.find(string="Locatie")
+    return ms, players, clean_loc(loc.find_parent().find_next("p").stripped_strings) if loc else ""
+
+
+def clean_loc(parts):
+    """Adresregels zonder telefoonnummer, gescheiden door komma's."""
+    return ", ".join(p.strip() for p in parts if p.strip() and not re.fullmatch(r"[\d\s\-+()]{6,}", p.strip()))
+
+
+matches, spelers, locatie = parse_team(team, TEAM)
 
 # ---------- wedstrijdformulieren ----------
 games, bijz = [], []
@@ -119,7 +135,8 @@ for m in matches:
                           zij=", ".join(up if thuis else hp) or "(team)", legs_wij=mine, legs_zij=theirs,
                           uitslag="W" if mine > theirs else "V"))
     loc = f.find(string="Locatie")
-    m["locatie"] = " | ".join(loc.find_parent().find_next("a").parent.stripped_strings).split(" | Bijz.")[0].removeprefix("Locatie | ") if loc else ""
+    m["locatie"] = clean_loc(" | ".join(loc.find_parent().find_next("a").parent.stripped_strings)
+                             .split(" | Bijz.")[0].removeprefix("Locatie | ").split(" | ")) if loc else ""
     for item in f.select(".ui.list .item"):
         bijz.append(dict(ronde=m["ronde"], datum=m["datum"], speler=txt(item.select_one(".header")),
                          prestatie=txt(item.select_one(".content")).replace(txt(item.select_one(".header")), "", 1).strip()))
@@ -152,6 +169,31 @@ stand = next(rows(t) for t in stand_soup.find_all("table") if "Wed" in [txt(th) 
 
 pk_single = rows(get(f"/web/scorelijst-pk/?d={D}&mt=1&s={S}&filter=P-{DIV}").find("table"))
 pk_koppel = rows(get(f"/web/scorelijst-pk/?d={D}&mt=2&s={S}&filter=P-{DIV}").find("table"))
+# punten per ronde -> onze positie na elke gespeelde ronde (benadering: telt alle gespeelde punten tot en met die ronde)
+rs = next(rows(t) for t in stand_soup.find_all("table") if "Wed" not in [txt(th) for th in t.find_all("th")])
+rcols = [i for i, h in enumerate(rs[0]) if h.isdigit()]
+pts = {r[1]: [num(r[i]) if i < len(r) else "" for i in rcols] for r in rs[1:] if len(r) > 2}
+cum, verloop = defaultdict(float), []
+for k, i in enumerate(rcols):
+    for t, p in pts.items():
+        cum[t] += p[k] if isinstance(p[k], (int, float)) else 0
+    if isinstance(pts.get(TEAM, [None] * len(rcols))[k], (int, float)):
+        verloop.append(dict(ronde=int(rs[0][i]), pos=1 + sum(v > cum[TEAM] for t, v in cum.items() if t != TEAM)))
+
+# tegenstanders: adres (route), vorm en beste spelers
+tegenstanders = {}
+for m in matches:
+    naam = m["uit"] if m["thuis"] == TEAM else m["thuis"]
+    if m["tegen_id"] and naam not in tegenstanders:
+        o_ms, o_sp, o_loc = parse_team(get(f"/web/team?d={D}&t={m['tegen_id']}&s={S}"), naam)
+        top = [p for p in o_sp if isinstance(p["singles"], int) and p["singles"] > 0 and isinstance(p["winst"], (int, float)) and p["winst"] > 0]
+        tegenstanders[naam] = dict(locatie=o_loc, vorm=[x["uitslag"] for x in o_ms if x["uitslag"]][-5:],
+                                   spelers=[dict(naam=p["naam"], singles=p["singles"], winst=p["winst"])
+                                            for p in sorted(top, key=lambda p: (-p["winst"], -p["singles"]))[:3]])
+for m in matches:  # locatie van nog te spelen wedstrijden: thuis bij ons, uit bij de tegenstander
+    if not m.get("locatie") and not m["vrij"]:
+        m["locatie"] = locatie if m["thuis"] == TEAM else tegenstanders.get(m["uit"] if m["thuis"] == TEAM else m["thuis"], {}).get("locatie", "")
+
 bijz_lists = {}
 for t, name in [(1, "180ers"), (2, "Hoogste finishes"), (3, "Snelste leg"), (4, "171ers")]:
     tab = get(f"/web/scorelijst-bijzres/?d={D}&t={t}&s={S}&filter=P-{DIV}").find("table")
@@ -205,7 +247,7 @@ def sheet(title, header, data):
 
 
 sheet("Info", ["Veld", "Waarde"],
-      [["Team", TEAM], ["Seizoen", S], ["Divisie", DIV], ["Speellocatie", locatie.replace(" | ", ", ")],
+      [["Team", TEAM], ["Seizoen", S], ["Divisie", DIV], ["Speellocatie", locatie],
        ["Captain", role("Captain")], ["Reserve captain", role("Reserve captain")],
        ["Bijgewerkt", NOW.strftime("%d-%m-%Y %H:%M")], ["Bron", f"{B}/web/team?d={D}&t={TEAM_ID}&s={S}"]])
 sheet("Stand", ["Positie", "Team", "Gespeeld", "Winst", "Verlies", "Punten", "Gemiddeld", "Strafpunten"],
@@ -214,7 +256,7 @@ sheet("Programma", ["Ronde", "Datum", "Thuis", "Uit", "Tegenstander", "Thuis/Uit
                     "Uitslag", "Vrije week", "Locatie", "Wedstrijdformulier"],
       [[m["ronde"], to_date(m["datum"]), m["thuis"], m["uit"], m["tegen"], m["tu"],
         int(m["wijzij"].split(" - ")[0]) if m["score"] else None, int(m["wijzij"].split(" - ")[1]) if m["score"] else None,
-        m["uitslag"] or None, "ja" if m["vrij"] else None, m.get("locatie", "").replace(" | ", ", ") or None,
+        m["uitslag"] or None, "ja" if m["vrij"] else None, m.get("locatie", "") or None,
         B + m["form"] if m["form"] else None] for m in matches])
 sheet("Partijen", ["Ronde", "Datum", "Tegenstander", "Onderdeel", "Type", "Pirates 7", "Tegenstander(s)",
                    "Legs wij", "Legs zij", "Uitslag"],
@@ -247,14 +289,14 @@ except PermissionError:
 
 # ---------- Dashboard (HTML) ----------
 dash = dict(
-    team=TEAM, div=DIV, seizoen=S, bijgewerkt=NOW.strftime("%d-%m-%Y %H:%M"), locatie=locatie.replace(" | ", ", "),
+    team=TEAM, div=DIV, seizoen=S, bijgewerkt=NOW.strftime("%d-%m-%Y %H:%M"), locatie=locatie,
     captain=role("Captain"), rc=role("Reserve captain"), bron=f"{B}/web/team?d={D}&t={TEAM_ID}&s={S}",
     stand=[dict(pos=num(r[0]), team=r[1], wed=num(r[2]), w=num(r[3]), v=num(r[4]), pnt=num(r[5]), gem=num(r[6]))
            for r in stand[1:] if any(r)],
     matches=[dict(ronde=m["ronde"], datum=m["datum"], tegen=m["tegen"], tu=m["tu"], uitslag=m["uitslag"], vrij=m["vrij"],
                   wij=int(m["wijzij"].split(" - ")[0]) if m["score"] else None,
                   zij=int(m["wijzij"].split(" - ")[1]) if m["score"] else None,
-                  locatie=m.get("locatie", "").replace(" | ", ", "), form=B + m["form"] if m["form"] else None)
+                  locatie=m.get("locatie", ""), form=B + m["form"] if m["form"] else None)
              for m in matches],
     games=[dict(ronde=g["ronde"], type=kind(g["onderdeel"]), onderdeel=g["onderdeel"], wij=g["wij"], zij=g["zij"],
                 lw=g["legs_wij"], lz=g["legs_zij"], uitslag=g["uitslag"]) for g in games],
@@ -271,7 +313,30 @@ dash = dict(
           for b in bijz if b["team"] == TEAM],
     bijzrank=[dict(lijst=name, pos=num(r[0]), speler=r[1], waarde=num(r[4]))
               for name, tab in bijz_lists.items() for r in ours_only(tab, 2)],
+    verloop=verloop, tegenstanders=tegenstanders, ntfy=NTFY_TOPIC,
 )
+(site / "data.json").write_text(json.dumps(dash, ensure_ascii=False), encoding="utf-8")  # vorige stand voor meldingen
+
+# ---------- melding bij een nieuwe uitslag (ntfy.sh; alleen in GitHub Actions, met de vorige data.json) ----------
+prev = Path("prev.json")
+if os.environ.get("MELDINGEN") == "aan" and prev.exists():
+    oud = {m["ronde"] for m in json.loads(prev.read_text(encoding="utf-8"))["matches"] if m["uitslag"]}
+    me = next(r for r in stand[1:] if r[1] == TEAM)
+    for m in matches:
+        if m["uitslag"] and m["ronde"] not in oud:
+            score = m["wijzij"].replace(" ", "")
+            titel = {"W": f"{TEAM} wint {score} van {m['tegen']}", "V": f"{TEAM} verliest {score} van {m['tegen']}",
+                     "G": f"{TEAM} speelt {score} gelijk tegen {m['tegen']}"}[m["uitslag"]]
+            wat = "Beker" if m["ronde"].startswith("b") else "Ronde " + m["ronde"]
+            tekst = f"{wat} · {m['datum']} · {m['tu'].lower()}\nStand: {me[0]}e in {DIV} met {me[5]} punten"
+            try:  # een storing bij ntfy mag de update van het dashboard nooit tegenhouden
+                http.post("https://ntfy.sh/", json=dict(topic=NTFY_TOPIC, title=titel, message=tekst, click=SITE_URL,
+                                                      tags=["dart", "trophy"] if m["uitslag"] == "W" else ["dart"]),
+                          timeout=30).raise_for_status()
+                print("Melding verstuurd:", titel)
+            except requests.RequestException as e:
+                print("Melding mislukt:", e)
+
 tpl = (Path(__file__).parent / "dashboard_template.html").read_text(encoding="utf-8")
 data = json.dumps(dash, ensure_ascii=False).replace("</", "<\\/")
 html = tpl.replace("/*DATA*/null", data)

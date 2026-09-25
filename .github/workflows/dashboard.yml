@@ -4,6 +4,7 @@ on:
   schedule:
     - cron: "0 5 * * *"   # elke ochtend (07:00 NL zomertijd)
     - cron: "30 22 * * *" # elke avond na de speelavond
+    - cron: "30 23 * * *" # en nog een keer later op de avond
   workflow_dispatch:       # handmatig: tab Actions > Run workflow
   push:
     branches: [main]
@@ -26,7 +27,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
+      - name: Vorige stand ophalen (voor meldingen bij nieuwe uitslagen)
+        run: curl -sf https://basvanderlit1-commits.github.io/pirates7/data.json -o prev.json || true
       - run: python scrape_pirates7.py
+        env:
+          MELDINGEN: aan
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

@@ -109,7 +109,7 @@ tr.ours td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
 .pcard .ptop { display: flex; align-items: baseline; gap: 6px; }
 .pcard .ptop b { font-size: 16px; }
 .pcard .saldo { margin-left: auto; font: 700 22px/1 var(--display); }
-.pcard .prow { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.prow { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
 .pcard .pfoot { font-size: 13px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
 .pcard .pfoot b { color: var(--ink); }
 
@@ -158,6 +158,57 @@ footer { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; g
 footer a { color: var(--muted); }
 footer .dl { color: var(--accent); font-weight: 600; }
 
+/* kolommen, knoppen */
+.col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.btn { display: inline-flex; align-items: center; gap: 6px; background: var(--brand); color: #fff; text-decoration: none; font: 700 14px var(--body); padding: 9px 14px; border-radius: 8px; border: 0; cursor: pointer; }
+.btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+.sub-h, .pv h3 { font: 600 11.5px var(--body); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.lead { margin: 0 0 8px; color: var(--ink); }
+.chart.small { min-height: 160px; }
+
+/* voorbeschouwing */
+.pv { display: grid; grid-template-columns: 1.3fr 1fr 1.2fr; gap: 18px 24px; }
+.pv .big { font: 400 26px/1.1 var(--title); }
+.pv .num { font: 700 32px/1 var(--display); }
+.pv .sub { font-size: 13px; color: var(--muted); }
+.pv .loc { font-size: 13px; color: var(--muted); margin: 6px 0 10px; }
+.pv ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.pv li { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dashed var(--line); padding-bottom: 5px; }
+.pv .blk + .blk { margin-top: 12px; }
+
+/* records */
+.recs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 10px; }
+.rec { background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.rec .l { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.rec .v { font: 700 30px/1.1 var(--display); color: var(--accent); }
+.rec .d { font-size: 13px; color: var(--muted); }
+
+/* koppels */
+#koppels td:first-child { white-space: normal; }
+
+/* spelersprofiel */
+.clickable { cursor: pointer; }
+@media (hover: hover) { #spelers tbody tr.clickable:hover td { background: var(--sunken); } .pcard.clickable:hover { border-color: var(--faint); } }
+dialog.profiel { width: min(780px, calc(100% - 32px)); max-height: min(90vh, 960px); padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); }
+dialog.profiel::backdrop { background: rgba(0, 0, 0, .65); }
+.dlg-head { position: sticky; top: 0; z-index: 1; background: var(--head); border-bottom: 3px solid var(--brand); padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
+.dlg-head h2 { flex: 1; }
+.dlg-close { background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 8px; width: 38px; height: 38px; font-size: 22px; line-height: 1; cursor: pointer; }
+.dlg-body { padding: 16px; display: grid; gap: 18px; }
+.pstats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.pstats div { background: var(--raised); padding: 10px 12px; }
+.pstats b { display: block; font: 700 26px/1.1 var(--display); }
+.pstats span { font-size: 12px; color: var(--muted); }
+.pstats b span { font-size: inherit; }
+.avond + .avond { margin-top: 12px; }
+.avond h4 { margin: 0 0 2px; font: 600 13px var(--body); color: var(--ink); }
+
+/* meldingen */
+.steps { margin: 0 0 6px; padding-left: 20px; display: grid; gap: 4px; color: var(--muted); }
+.steps b, .steps a { color: var(--ink); }
+.topic { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+.topic code { background: var(--sunken); border: 1px solid var(--line); padding: 8px 12px; border-radius: 8px; font-size: 15px; color: var(--ink); }
+
 /* navigatie: alleen op telefoon */
 nav.bnav { display: none; }
 
@@ -177,7 +228,12 @@ nav.bnav { display: none; }
   .next { width: 100%; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--brand); border-radius: 10px; padding: 10px 14px; }
   .next b { font-size: 21px; }
   main.wrap { padding-block: 14px 24px; gap: 14px; }
-  .grid, .two { display: contents; }
+  .grid, .two, .col { display: contents; }
+  .pv { grid-template-columns: 1fr; }
+  .pstats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  dialog.profiel { width: 100%; max-width: none; height: 100%; max-height: none; margin: 0; border: 0; border-radius: 0; }
+  .dlg-head { padding-top: calc(14px + env(safe-area-inset-top, 0px)); }
+  .dlg-body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
   [data-view] { display: none; }
   body[data-v="overzicht"] [data-view~="overzicht"],
   body[data-v="stand"] [data-view~="stand"],
@@ -239,23 +295,50 @@ nav.bnav { display: none; }
 <main class="wrap">
   <section class="kpis" id="kpis" data-view="overzicht" aria-label="Kerncijfers"></section>
 
+  <section class="panel" id="preview" data-view="overzicht"></section>
+
   <div class="grid">
-    <section class="panel" data-view="overzicht">
-      <div class="ph"><h2>Punten per avond</h2><div class="form" id="form" aria-label="Vorm, laatste vijf"></div></div>
-      <div class="chart" id="chart"></div>
-      <div class="legend"><span><i style="background:var(--win)"></i>Gewonnen</span><span><i style="background:var(--loss)"></i>Verloren</span><span>Stippellijn = winstgrens (5 van 9)</span></div>
-    </section>
-    <section class="panel" data-view="stand">
-      <div class="ph"><h2 id="standTitle">Stand</h2><small id="standSub"></small></div>
-      <div class="scroll"><table id="stand"></table></div>
-    </section>
+    <div class="col">
+      <section class="panel" data-view="overzicht">
+        <div class="ph"><h2>Punten per avond</h2><div class="form" id="form" aria-label="Vorm, laatste vijf"></div></div>
+        <div class="chart" id="chart"></div>
+        <div class="legend"><span><i style="background:var(--win)"></i>Gewonnen</span><span><i style="background:var(--loss)"></i>Verloren</span><span>Stippellijn = winstgrens (5 van 9)</span></div>
+      </section>
+      <section class="panel" data-view="overzicht">
+        <div class="ph"><h2>Records</h2><small>dit seizoen, incl. beker</small></div>
+        <div class="recs" id="recs"></div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel" data-view="stand">
+        <div class="ph"><h2 id="standTitle">Stand</h2><small id="standSub"></small></div>
+        <div class="scroll"><table id="stand"></table></div>
+      </section>
+      <section class="panel" data-view="stand">
+        <div class="ph"><h2>Verloop positie</h2><small id="verloopSub"></small></div>
+        <div class="chart small" id="verloop"></div>
+        <p class="note">Positie op basis van alle punten tot en met die ronde. Omdat niet elk team al even vaak speelde, kan dit afwijken van de stand van nu.</p>
+      </section>
+    </div>
   </div>
 
   <section class="panel" data-view="spelers">
-    <div class="ph"><h2>Spelers</h2><small>Partijen gewonnen, incl. beker</small></div>
+    <div class="ph"><h2>Spelers</h2><small>Tik op een speler voor het profiel</small></div>
     <div class="scroll spelers-table"><table id="spelers"></table></div>
     <div class="pcards" id="pcards"></div>
   </section>
+
+  <div class="two">
+    <section class="panel" data-view="spelers">
+      <div class="ph"><h2>Beste koppels</h2><small>incl. beker</small></div>
+      <div class="scroll"><table id="koppels"></table></div>
+    </section>
+    <section class="panel" data-view="spelers">
+      <div class="ph"><h2>Persoonlijk klassement</h2><small id="pkSub"></small></div>
+      <div class="scroll"><table id="pk"></table></div>
+      <p class="note" id="pkNote"></p>
+    </section>
+  </div>
 
   <section class="panel" data-view="programma">
     <div class="ph">
@@ -274,15 +357,22 @@ nav.bnav { display: none; }
       <div class="ph"><h2>Bijzondere resultaten</h2></div>
       <div class="chips" id="bijz"></div>
     </section>
-    <section class="panel" data-view="spelers">
-      <div class="ph"><h2>Persoonlijk klassement</h2><small id="pkSub"></small></div>
-      <div class="scroll"><table id="pk"></table></div>
-      <p class="note" id="pkNote"></p>
+    <section class="panel" data-view="overzicht">
+      <div class="ph"><h2>Uitslag direct op je telefoon</h2></div>
+      <p class="lead">Na elke speelavond een melding met de uitslag en de nieuwe stand, via de gratis app <b>ntfy</b>. Geen account nodig.</p>
+      <ol class="steps">
+        <li>Installeer ntfy: <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a> · <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a></li>
+        <li>Tik in de app op <b>+</b> en abonneer je op dit onderwerp:</li>
+      </ol>
+      <div class="topic"><code id="topic"></code><button class="btn ghost" id="copyTopic" type="button">Kopiëren</button></div>
+      <p class="note">Liever zonder app? Open <a id="topicWeb" target="_blank" rel="noopener"></a> in je browser en zet daar meldingen aan.</p>
     </section>
   </div>
 
   <footer id="foot"></footer>
 </main>
+
+<dialog class="profiel" id="profiel" aria-label="Spelersprofiel"></dialog>
 
 <nav class="bnav" aria-label="Onderdelen">
   <button data-go="overzicht"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg>Overzicht</button>
@@ -304,6 +394,8 @@ const played = D.matches.filter(m => m.uitslag);
 const todo = D.matches.filter(m => !m.uitslag && !m.vrij);
 const comp = played.filter(m => !beker(m));
 const me = D.stand.find(s => s.team === D.team) || {};
+const maps = loc => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`;
+const vormPills = v => (v || []).map(r => `<span class="pill ${r}">${r}</span>`).join("");
 
 // ---- kop ----
 $("meta").textContent = `D.V. The Pirates · Divisie ${D.div} · ${D.seizoen}`;
@@ -315,7 +407,7 @@ function when(m) {
 }
 const nx = todo[0];
 $("next").innerHTML = nx
-  ? `<div class="eyebrow">Volgende wedstrijd · <span class="when">${when(nx)}</span></div><b>${esc(nx.tegen)}</b><small>${esc(nx.datum)} · ${nx.tu.toLowerCase()} · ${beker(nx) ? "beker" : "ronde " + esc(nx.ronde)}</small>`
+  ? `<div class="eyebrow">Volgende wedstrijd · <span class="when">${when(nx)}</span></div><b>${esc(nx.tegen)}</b><small>${esc(nx.datum)} · ${nx.tu.toLowerCase()} · ${beker(nx) ? "beker" : "ronde " + esc(nx.ronde)}${nx.locatie ? ` · <a href="${maps(nx.locatie)}" target="_blank" rel="noopener">route ↗</a>` : ""}</small>`
   : `<div class="eyebrow">Seizoen</div><b>Alle wedstrijden gespeeld</b>`;
 
 // ---- kerncijfers ----
@@ -370,8 +462,8 @@ const saldo = s => { const t = tot(s), d = t.lv - t.lt; return `<span class="${d
 const rolTag = s => { const r = s.rol === "Captain" ? "C" : s.rol === "Reserve captain" ? "RC" : ""; return r ? `<span class="role" title="${esc(s.rol)}">${r}</span>` : ""; };
 const spelers = [...D.spelers].sort((a, b) => tot(b).w - tot(a).w || (tot(b).lv - tot(b).lt) - (tot(a).lv - tot(a).lt));
 $("spelers").innerHTML = `<thead><tr><th>Speler</th><th>Singles</th><th>Koppels</th><th>Round robin</th><th class="n">Legs</th><th class="n">Saldo</th><th class="c">180</th><th class="c">Finish</th></tr></thead><tbody>` +
-  spelers.map(s => `<tr><td><b>${esc(s.naam)}</b>${rolTag(s)}</td><td>${bar(s.s)}</td><td>${bar(s.k)}</td><td>${bar(s.rr)}</td><td class="n">${tot(s).lv}–${tot(s).lt}</td><td class="n">${saldo(s)}</td><td class="c">${s.n180 || "–"}</td><td class="c">${s.finishes.join(", ") || "–"}</td></tr>`).join("") + "</tbody>";
-$("pcards").innerHTML = spelers.map(s => `<div class="pcard">
+  spelers.map(s => `<tr class="clickable" data-naam="${esc(s.naam)}" tabindex="0"><td><b>${esc(s.naam)}</b>${rolTag(s)}</td><td>${bar(s.s)}</td><td>${bar(s.k)}</td><td>${bar(s.rr)}</td><td class="n">${tot(s).lv}–${tot(s).lt}</td><td class="n">${saldo(s)}</td><td class="c">${s.n180 || "–"}</td><td class="c">${s.finishes.join(", ") || "–"}</td></tr>`).join("") + "</tbody>";
+$("pcards").innerHTML = spelers.map(s => `<div class="pcard clickable" data-naam="${esc(s.naam)}" tabindex="0" role="button">
   <div class="ptop"><b>${esc(s.naam)}</b>${rolTag(s)}<span class="saldo" title="Legsaldo">${saldo(s)}</span></div>
   <div class="prow"><span>Singles</span>${bar(s.s)}</div>
   <div class="prow"><span>Koppels</span>${bar(s.k)}</div>
@@ -385,7 +477,8 @@ function matchHtml(m) {
   const rn = `<span class="rnd">${beker(m) ? "B" : esc(m.ronde)}</span>`;
   if (m.vrij) return `<details class="match todo bye"><summary tabindex="-1">${rn}<span class="opp"><b>Vrije week</b><small>${beker(m) ? "beker" : ""}</small></span><span></span><span></span><span></span></summary></details>`;
   const sub = `<small>${esc(m.datum)} · ${m.tu}${beker(m) ? " · beker" : ""}</small>`;
-  if (!m.uitslag) return `<details class="match todo"><summary tabindex="-1">${rn}<span class="opp"><b>${esc(m.tegen)}</b>${sub}</span><span class="score dim">–</span><span></span><span class="chev">›</span></summary></details>`;
+  const route = m.locatie ? ` · <a href="${maps(m.locatie)}" target="_blank" rel="noopener">route ↗</a>` : "";
+  if (!m.uitslag) return `<details class="match todo"><summary tabindex="-1">${rn}<span class="opp"><b>${esc(m.tegen)}</b><small>${esc(m.datum)} · ${m.tu}${beker(m) ? " · beker" : ""}${route}</small></span><span class="score dim">–</span><span></span><span class="chev">›</span></summary></details>`;
   const gs = D.games.filter(g => g.ronde === m.ronde);
   const groups = TYPES.map(([t, label]) => {
     const list = gs.filter(g => g.type === t);
@@ -426,6 +519,140 @@ $("pk").innerHTML = `<thead><tr><th>Speler</th><th>Singles</th><th>Koppels</th><
   names.map(n => `<tr><td><b>${esc(n)}</b></td><td data-label="Singles">${pos("Singles", n)}</td><td data-label="Koppels">${pos("Koppels", n)}</td></tr>`).join("") + "</tbody>";
 
 $("foot").innerHTML = `<span>D.V. The Pirates · est. 1985</span><span>Bijgewerkt ${esc(D.bijgewerkt)}</span><a class="dl" href="pirates7-resultaten.xlsx" download>Data downloaden (Excel)</a><span>Thuis: ${esc(D.locatie)}</span><span>Bron: <a href="${esc(D.bron)}" target="_blank" rel="noopener">teambeheer.nl</a></span>`;
+
+// ---- voorbeschouwing volgende tegenstander (met route) ----
+(function preview() {
+  const el = $("preview");
+  if (!nx) { el.remove(); return; }
+  const o = D.tegenstanders[nx.tegen] || {};
+  const st = D.stand.find(s => s.team === nx.tegen);
+  const heen = [...played].reverse().find(m => m.tegen === nx.tegen);
+  el.innerHTML = `<div class="ph"><h2>Volgende tegenstander</h2><small>${esc(nx.datum)} · ${when(nx)}</small></div>
+  <div class="pv">
+    <div>
+      <div class="big">${esc(nx.tegen)}</div>
+      <div class="sub">${nx.tu} · ${beker(nx) ? "beker" : "ronde " + esc(nx.ronde)}</div>
+      <p class="loc">${esc(nx.locatie || "")}</p>
+      ${nx.locatie ? `<a class="btn" href="${maps(nx.locatie)}" target="_blank" rel="noopener">Route plannen ↗</a>` : ""}
+    </div>
+    <div>
+      <div class="blk"><h3>In de stand</h3>${st ? `<div class="num">${st.pos}e</div><div class="sub">${st.pnt} punten · gem. ${nl(st.gem)}</div>` : `<div class="sub">andere divisie</div>`}</div>
+      <div class="blk"><h3>Vorm</h3><div class="form">${vormPills(o.vorm) || `<span class="sub">nog niet gespeeld</span>`}</div></div>
+      ${heen ? `<div class="blk"><h3>Vorige ontmoeting</h3><div>${pill(heen.uitslag)} <b>${heen.wij}–${heen.zij}</b> <span class="sub">${esc(heen.datum)}</span></div></div>` : ""}
+    </div>
+    <div>
+      <h3>Sterkste spelers (singles)</h3>
+      <ol>${(o.spelers || []).map(p => `<li><span>${esc(p.naam)}</span><span class="sub">${nl(p.winst, 0)}% · ${p.singles} gesp.</span></li>`).join("") || `<li class="sub">nog geen gegevens</li>`}</ol>
+    </div>
+  </div>`;
+})();
+
+// ---- verloop positie ----
+$("verloopSub").textContent = `na elke ronde · nu ${me.pos}e`;
+function drawVerloop() {
+  const el = $("verloop"), W = el.clientWidth, pts = D.verloop, N = D.stand.length;
+  if (!W) return;
+  if (!pts.length) { el.innerHTML = `<p class="empty">Nog geen rondes gespeeld.</p>`; return; }
+  const H = 190, L = 28, R = 40, T = 14, B = 30;
+  const x = i => pts.length === 1 ? (L + W - R) / 2 : L + (W - L - R) * i / (pts.length - 1);
+  const y = p => T + (H - T - B) * (p - 1) / Math.max(1, N - 1);
+  const tick = Math.ceil(pts.length / Math.max(1, Math.floor((W - L - R) / 40)));
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Positie na elke ronde">`;
+  for (const p of [1, Math.ceil(N / 2), N]) s += `<line x1="${L}" x2="${W - R}" y1="${y(p)}" y2="${y(p)}" stroke="var(--line)"/><text x="${L - 8}" y="${y(p) + 4}" text-anchor="end">${p}</text>`;
+  s += `<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${pts.map((p, i) => `${x(i)},${y(p.pos)}`).join(" ")}"/>`;
+  pts.forEach((p, i) => {
+    const last = i === pts.length - 1;
+    s += `<circle cx="${x(i)}" cy="${y(p.pos)}" r="${last ? 5 : 3.5}" fill="${last ? "var(--accent)" : "var(--surface)"}" stroke="var(--accent)" stroke-width="2"><title>Na ronde ${p.ronde}: ${p.pos}e</title></circle>`;
+    if (i % tick === 0 || last) s += `<text x="${x(i)}" y="${H - B + 18}" text-anchor="middle">R${p.ronde}</text>`;
+    if (last) s += `<text class="val" x="${x(i) + 9}" y="${y(p.pos) + 5}">${p.pos}e</text>`;
+  });
+  el.innerHTML = s + "</svg>";
+}
+new ResizeObserver(drawVerloop).observe($("verloop"));
+
+// ---- records ----
+(function records() {
+  const R = [];
+  const fin = D.bijz.filter(b => /finish/.test(b.prestatie)).map(b => ({ ...b, v: parseInt(b.prestatie, 10) })).sort((a, b) => b.v - a.v)[0];
+  R.push(["Hoogste finish", fin ? fin.v : "–", fin ? `${fin.speler} · ${fin.datum}` : "nog geen finish van 100+"]);
+  const m180 = [...D.spelers].sort((a, b) => b.n180 - a.n180)[0];
+  R.push(["Meeste 180's", m180 && m180.n180 ? m180.n180 : "–", m180 && m180.n180 ? m180.naam : "nog geen 180"]);
+  const best = [...played].sort((a, b) => b.wij - a.wij || toDate(b.datum) - toDate(a.datum))[0];
+  if (best) R.push(["Beste avond", `${best.wij}–${best.zij}`, `tegen ${best.tegen}`]);
+  let cur = 0, max = 0;
+  played.forEach(m => { cur = m.uitslag === "W" ? cur + 1 : 0; max = Math.max(max, cur); });
+  R.push(["Langste winstreeks", max, max === 1 ? "gewonnen avond" : "gewonnen avonden op rij"]);
+  const top = [...D.spelers].sort((a, b) => tot(b).w - tot(a).w)[0];
+  if (top) R.push(["Meeste partijen gewonnen", tot(top).w, top.naam]);
+  const streak = {}; let bs = { n: 0 };
+  D.games.forEach(g => {
+    if (g.type === "Team") return;
+    g.wij.split(", ").forEach(p => { const c = streak[p] = g.uitslag === "W" ? (streak[p] || 0) + 1 : 0; if (c > bs.n) bs = { n: c, p }; });
+  });
+  if (bs.n) R.push(["Langste reeks partijen", bs.n, `${bs.p}, op rij gewonnen`]);
+  $("recs").innerHTML = R.map(([l, v, d]) => `<div class="rec"><div class="l">${l}</div><div class="v">${esc(v)}</div><div class="d">${esc(d)}</div></div>`).join("");
+})();
+
+// ---- beste koppels ----
+const pairs = {};
+D.games.filter(g => g.type === "Koppel").forEach(g => {
+  const p = pairs[g.wij.split(", ").sort().join(" & ")] ??= { n: 0, w: 0, lv: 0, lt: 0 };
+  p.n++; p.w += g.uitslag === "W"; p.lv += g.lw; p.lt += g.lz;
+});
+const pairList = Object.entries(pairs).sort(([, a], [, b]) => b.w - a.w || b.w / b.n - a.w / a.n || (b.lv - b.lt) - (a.lv - a.lt));
+$("koppels").innerHTML = pairList.length
+  ? `<thead><tr><th>Koppel</th><th>Gewonnen</th><th class="n">Legs</th></tr></thead><tbody>` +
+    pairList.map(([k, p]) => `<tr><td><b>${esc(k)}</b></td><td>${bar([p.n, p.w])}</td><td class="n">${p.lv}–${p.lt}</td></tr>`).join("") + "</tbody>"
+  : `<tbody><tr><td class="empty">Nog geen koppelpartijen gespeeld.</td></tr></tbody>`;
+
+// ---- spelersprofiel ----
+const dlg = $("profiel");
+const TYPE_LBL = { RR: "RR 301", Single: "Single", Koppel: "Koppel" };
+function openProfiel(naam) {
+  const s = D.spelers.find(x => x.naam === naam);
+  if (!s) return;
+  const t = tot(s);
+  const mine = D.games.filter(g => g.type !== "Team" && g.wij.split(", ").includes(naam));
+  const gw = mine.filter(g => g.uitslag === "W").length;
+  const partner = g => g.wij.split(", ").find(x => x !== naam);
+  const partners = {};
+  mine.filter(g => g.type === "Koppel").forEach(g => { const o = partners[partner(g)] ??= { n: 0, w: 0 }; o.n++; o.w += g.uitslag === "W"; });
+  const bp = Object.entries(partners).sort(([, a], [, b]) => b.w - a.w || b.n - a.n)[0];
+  const avonden = [...played].reverse().map(m => ({ m, gs: mine.filter(g => g.ronde === m.ronde) })).filter(a => a.gs.length);
+  dlg.innerHTML = `<div class="dlg-head"><h2>${esc(naam)}${rolTag(s)}</h2><button class="dlg-close" type="button" aria-label="Sluiten">×</button></div>
+  <div class="dlg-body">
+    <div class="pstats">
+      <div><b>${gw}/${mine.length}</b><span>partijen gewonnen</span></div>
+      <div><b>${pct(gw, mine.length) ?? 0}%</b><span>winstpercentage</span></div>
+      <div><b>${saldo(s)}</b><span>legsaldo (${t.lv}–${t.lt})</span></div>
+      <div><b>${s.n180 || "–"}</b><span>180's${s.finishes.length ? ` · finish ${esc(s.finishes.join(", "))}` : ""}</span></div>
+    </div>
+    <div><div class="prow"><span>Singles</span>${bar(s.s)}</div><div class="prow"><span>Koppels</span>${bar(s.k)}</div><div class="prow"><span>Round robin</span>${bar(s.rr)}</div></div>
+    <div><h3 class="sub-h">Vorm · laatste 10 partijen</h3><div class="form">${vormPills(mine.slice(-10).map(g => g.uitslag)) || `<span class="dim">nog geen partijen</span>`}</div></div>
+    ${bp ? `<div><h3 class="sub-h">Beste koppelpartner</h3><div><b>${esc(bp[0])}</b> <span class="dim">· ${bp[1].w} van ${bp[1].n} gewonnen</span></div></div>` : ""}
+    <div><h3 class="sub-h">Alle partijen</h3>${avonden.map(({ m, gs }) => `<div class="avond"><h4>${beker(m) ? "Beker" : "R" + esc(m.ronde)} · ${esc(m.datum)} · ${esc(m.tegen)} (${m.tu.toLowerCase()})</h4>` +
+      gs.map(g => `<div class="game"><span class="us">${TYPE_LBL[g.type]}${g.type === "Koppel" ? ` met ${esc(partner(g))}` : ""}</span><span class="legs">${g.lw}–${g.lz}</span><span class="them">${esc(g.zij)}</span>${pill(g.uitslag)}</div>`).join("") + "</div>").join("") || `<p class="empty">Nog geen partijen gespeeld.</p>`}</div>
+  </div>`;
+  dlg.querySelector(".dlg-close").addEventListener("click", () => dlg.close());
+  dlg.showModal();
+  dlg.scrollTop = 0;
+}
+dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+document.querySelectorAll("[data-naam]").forEach(el => {
+  el.addEventListener("click", () => openProfiel(el.dataset.naam));
+  el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openProfiel(el.dataset.naam); } });
+});
+
+// ---- meldingen (ntfy) ----
+$("topic").textContent = D.ntfy;
+$("topicWeb").href = `https://ntfy.sh/${D.ntfy}`;
+$("topicWeb").textContent = `ntfy.sh/${D.ntfy}`;
+$("copyTopic").addEventListener("click", async e => {
+  const btn = e.currentTarget;
+  try { await navigator.clipboard.writeText(D.ntfy); btn.textContent = "Gekopieerd"; }
+  catch (err) { getSelection().selectAllChildren($("topic")); btn.textContent = "Geselecteerd"; }
+  setTimeout(() => { btn.textContent = "Kopiëren"; }, 2000);
+});
 
 // ---- telefoon: tabbladen onderin (onthouden via #hash) ----
 const VIEWS = ["overzicht", "stand", "spelers", "programma"];

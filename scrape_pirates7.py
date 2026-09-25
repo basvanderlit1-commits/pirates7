@@ -1,6 +1,7 @@
 """Haalt alle data van Pirates 7 (DBMN, via feeds.teambeheer.nl) op en schrijft
 'pirates 7 resultaten.xlsx' en het dashboard in site/ (GitHub Pages).
 Seizoen, team-id en divisie worden automatisch opgezocht; alleen TEAM moet kloppen met de naam op teambeheer."""
+import hashlib
 import json
 import re
 import shutil
@@ -12,8 +13,7 @@ from openpyxl import Workbook
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 from requests.adapters import HTTPAdapter, Retry
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.drawing.image import Image as XLImage
+from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 
 B = "https://feeds.teambeheer.nl"
@@ -157,15 +157,24 @@ for t, name in [(1, "180ers"), (2, "Hoogste finishes"), (3, "Snelste leg"), (4, 
     tab = get(f"/web/scorelijst-bijzres/?d={D}&t={t}&s={S}&filter=P-{DIV}").find("table")
     bijz_lists[name] = rows(tab) if tab else [["(geen data)"]]
 
-# ---------- Excel ----------
-NAVY, BLUE, GOLD, GREY = "222222", "7C1520", "BD202C", "7F7F7F"  # huisstijl D.V. The Pirates: antraciet + rood
-FONT = "Calibri"
-fill = lambda c: PatternFill("solid", fgColor=c)
-ZEBRA, OURS, TILE = fill("F4F4F4"), fill("FBE4E6"), fill("F4F4F4")
-WV = {"W": (fill("E2F0D9"), "375623"), "V": (fill("FBE3E4"), "9C0006"), "G": (fill("FFF2CC"), "7F6000")}
-LINE = Side(style="thin", color="E0E0E0")
+# ---------- voorbereiden ----------
 NOW = datetime.now(ZoneInfo("Europe/Amsterdam"))
-TODAY = NOW.strftime("%d-%m-%Y")
+for m in matches:
+    thuis = m["thuis"] == TEAM
+    m["tegen"], m["tu"] = (m["uit"], "Thuis") if thuis else (m["thuis"], "Uit")
+    if m["score"]:
+        h, u = m["score"].split("-")
+        m["wijzij"] = f"{h} - {u}" if thuis else f"{u} - {h}"
+role = lambda r: ", ".join(s["naam"] for s in spelers if s["rol"] == r) or "–"
+ours_only = lambda tab, col: [r for r in tab[1:] if len(r) > col and r[col] == TEAM]
+pk_count = lambda tab: sum(1 for r in tab[1:] if len(r) > 2)  # aantal spelers in het klassement
+won = lambda r: round(num(r[3]) * num(r[6]) / 100)  # gewonnen partijen = gespeeld x winst%
+kind = lambda o: "RR" if o.startswith("RR") else "Single" if o.startswith(("Single", "Singel")) else \
+    "Koppel" if o.startswith("Koppel") else "Team"
+site = Path("site")
+site.mkdir(exist_ok=True)
+
+# ---------- Excel: alleen de uitgelezen data (de presentatie zit in het dashboard) ----------
 wb = Workbook()
 wb.remove(wb.active)
 
@@ -177,237 +186,59 @@ def to_date(s):
         return s
 
 
-def pct(v):  # 33.3 / "33.3 %" -> 0.333 (Excel-percentage)
-    v = num(v)
-    return v / 100 if isinstance(v, (int, float)) else None
-
-
-def new_sheet(title, heading, widths):
+def sheet(title, header, data):
     ws = wb.create_sheet(title)
-    ws.sheet_view.showGridLines = False
-    ws.sheet_properties.tabColor = GOLD
-    ws.column_dimensions["A"].width = 2  # marge
-    for i, w in enumerate(widths, 2):
-        ws.column_dimensions[get_column_letter(i)].width = w
-    ws["B1"], ws["B2"] = heading, f"{TEAM}  ·  Divisie {DIV}  ·  Seizoen {S}  ·  bijgewerkt {TODAY}"
-    ws["B1"].font = Font(name=FONT, size=18, bold=True, color=NAVY)
-    ws["B2"].font = Font(name=FONT, size=10, italic=True, color=GREY)
-    ws.row_dimensions[1].height = 30
-    ws.page_setup.orientation = "landscape"
-    ws.page_setup.fitToWidth, ws.page_setup.fitToHeight = 1, 0
-    ws.sheet_properties.pageSetUpPr.fitToPage = True
-    return ws
-
-
-def table(ws, row, header, data, left=(), fmt=None, groups=None, ours=None, band=None, wv=None, links=None, frozen=True):
-    """Opgemaakte tabel vanaf kolom B. left: kolommen (0-based) links uitgelijnd, fmt: {kolom: numberformat},
-    groups: [(label, van, tot)], ours(r): markeer rij, band(r): sleutel voor afwisselende achtergrond,
-    wv: kolom met W/V, links: kolom met URL. Geeft de laatste rij terug."""
-    fmt = fmt or {}
-    if groups:
-        for label, a, b in groups:
-            ws.merge_cells(start_row=row, start_column=a + 2, end_row=row, end_column=b + 2)
-            c = ws.cell(row, a + 2, label)
-            c.font, c.alignment = Font(name=FONT, bold=True, color="FFFFFF"), Alignment(horizontal="center")
-            for col in range(a + 2, b + 3):
-                ws.cell(row, col).fill = fill(BLUE)
-                ws.cell(row, col).border = Border(left=Side(style="thin", color="FFFFFF") if col == a + 2 else None)
-        row += 1
-    for j, h in enumerate(header):
-        c = ws.cell(row, j + 2, h)
-        c.font, c.fill = Font(name=FONT, bold=True, color="FFFFFF"), fill(NAVY)
-        c.alignment = Alignment(horizontal="left" if j in left else "center", vertical="center", wrap_text=True,
-                                indent=1 if j in left else 0)
-    ws.row_dimensions[row].height = 32
-    head, prev, zebra = row, object(), True
+    ws.append(header)
+    for c in ws[1]:
+        c.font = Font(bold=True)
     for r in data:
-        row += 1
-        key = band(r) if band else row
-        if key != prev:
-            zebra, prev = not zebra, key
-        mine = bool(ours and ours(r))
-        for j, v in enumerate(r):
-            c = ws.cell(row, j + 2, v)
-            c.font = Font(name=FONT, bold=mine)
-            c.alignment = Alignment(horizontal="left" if j in left else "center", vertical="center",
-                                    indent=1 if j in left else 0)
-            c.border = Border(bottom=LINE)
-            c.fill = OURS if mine else ZEBRA if zebra else PatternFill()
-            if j in fmt:
-                c.number_format = fmt[j]
-            if j == wv and v in WV:
-                c.fill, color = WV[v]
-                c.font = Font(name=FONT, bold=True, color=color)
-            if j == links and v:
-                c.value, c.hyperlink = "Bekijk ›", v
-                c.font = Font(name=FONT, color="0563C1", underline="single")
-        ws.row_dimensions[row].height = 20
-    if frozen and data:  # alleen bij één tabel per blad
-        ws.freeze_panes = ws.cell(head + 1, 2)
-        ws.auto_filter.ref = f"B{head}:{get_column_letter(len(header) + 1)}{row}"
-    return row
+        ws.append([num(v) if isinstance(v, str) else v for v in r])
+    for row in ws.iter_rows(min_row=2):
+        for c in row:
+            if isinstance(c.value, date):
+                c.number_format = "dd-mm-yyyy"
+    for i, col in enumerate(ws.columns, 1):
+        ws.column_dimensions[get_column_letter(i)].width = min(50, max(len(str(c.value or "")) for c in col) + 2)
+    ws.freeze_panes = "A2"
+    if ws.max_row > 1:
+        ws.auto_filter.ref = ws.dimensions
 
 
-def section(ws, row, col, text, span=5):
-    ws.cell(row, col, text).font = Font(name=FONT, size=13, bold=True, color=NAVY)
-    for k in range(col, col + span):
-        ws.cell(row, k).border = Border(bottom=Side(style="medium", color=NAVY))
-
-
-def line(ws, row, cols, values, fonts=None):
-    for i, (c, v) in enumerate(zip(cols, values)):
-        cell = ws.cell(row, c, v)
-        cell.font = (fonts or {}).get(i, Font(name=FONT))
-        cell.border = Border(bottom=LINE)
-        if isinstance(v, date):
-            cell.number_format = "dd-mm-yyyy"
-    return ws
-
-
-# --- data voorbereiden ---
-comp = [m for m in matches if m["uitslag"] and not m["ronde"].startswith("b")]
-played = [m for m in matches if m["uitslag"]]
-todo = [m for m in matches if not m["uitslag"] and not m["vrij"]]
-my_row = next(r for r in stand[1:] if TEAM in r)
-for m in matches:
-    thuis = m["thuis"] == TEAM
-    m["tegen"], m["tu"] = (m["uit"], "Thuis") if thuis else (m["thuis"], "Uit")
-    if m["score"]:
-        h, u = m["score"].split("-")
-        m["wijzij"] = f"{h} - {u}" if thuis else f"{u} - {h}"
-role = lambda r: ", ".join(s["naam"] for s in spelers if s["rol"] == r) or "–"
-ours_only = lambda tab, col: [r for r in tab[1:] if len(r) > col and r[col] == TEAM]
-pk_count = lambda tab: sum(1 for r in tab[1:] if len(r) > 2)  # aantal spelers in het klassement
-won = lambda r: round(num(r[3]) * num(r[6]) / 100)  # gewonnen partijen = gespeeld x winst%
-
-# --- Overzicht (dashboard) ---
-ws = new_sheet("Overzicht", f"{TEAM}  –  Seizoensoverzicht", [17] + [13] * 11)
-tiles = [("Positie", f"{my_row[0]}e"), ("Punten", num(my_row[5])), ("Gem. per avond", num(my_row[6])),
-         ("Gewonnen / verloren", f"{sum(m['uitslag'] == 'W' for m in comp)} / {sum(m['uitslag'] == 'V' for m in comp)}"),
-         ("Nog te spelen", len(todo)), ("180's", sum("180" in b["prestatie"] for b in bijz if b["team"] == TEAM))]
-for i, (label, value) in enumerate(tiles):
-    col = 2 + i * 2
-    for rr in (4, 5, 6):
-        ws.merge_cells(start_row=rr, start_column=col, end_row=rr, end_column=col + 1)
-        for k in (col, col + 1):
-            ws.cell(rr, k).fill = TILE
-            ws.cell(rr, k).border = Border(top=Side(style="thick", color=GOLD) if rr == 4 else None,
-                                           left=Side(style="thick", color="FFFFFF") if k == col else None)
-    ws.cell(4, col, label).font = Font(name=FONT, size=10, color=GREY)
-    ws.cell(5, col, value).font = Font(name=FONT, size=26, bold=True, color=NAVY)
-    for rr in (4, 5):
-        ws.cell(rr, col).alignment = Alignment(horizontal="center", vertical="center")
-ws.row_dimensions[4].height, ws.row_dimensions[5].height = 22, 42
-logo = XLImage(Path(__file__).parent / "web" / "logo.png")
-logo.width = logo.height = 64
-ws.add_image(logo, "M1")
-
-section(ws, 8, 2, "Teaminformatie")
-info = [("Divisie", f"Divisie {DIV}"), ("Speellocatie", locatie.replace(" | ", ", ")), ("Captain", role("Captain")),
-        ("Reserve captain", role("Reserve captain")), ("Spelers", len(spelers)),
-        ("Bekerwedstrijden", len(played) - len(comp)), ("Bron", "teambeheer.nl (via dbmn.nl)")]
-for i, (k, v) in enumerate(info, 9):
-    ws.merge_cells(start_row=i, start_column=3, end_row=i, end_column=6)
-    line(ws, i, range(2, 7), [k, v], {0: Font(name=FONT, bold=True, color=GREY)})
-    ws.cell(i, 3).alignment = Alignment(horizontal="left")
-ws.cell(15, 3).hyperlink = f"{B}/web/team?d={D}&t={TEAM_ID}&s={S}"
-ws.cell(15, 3).font = Font(name=FONT, color="0563C1", underline="single")
-
-GREYB = Font(name=FONT, bold=True, color=GREY)
-section(ws, 8, 8, "Laatste uitslagen")
-line(ws, 9, [8, 9, 11, 12], ["Datum", "Tegenstander", "T/U", "Uitslag"], {0: GREYB, 1: GREYB, 2: GREYB, 3: GREYB})
-row = 9
-for m in reversed(played[-5:]):
-    row += 1
-    ws.merge_cells(start_row=row, start_column=9, end_row=row, end_column=10)
-    line(ws, row, [8, 9, 11, 12], [to_date(m["datum"]), m["tegen"], m["tu"], f"{m['uitslag']}   {m['wijzij']}"])
-    ws.cell(row, 8).alignment = Alignment(horizontal="left")
-    c = ws.cell(row, 12)
-    c.fill, color = WV[m["uitslag"]]
-    c.font, c.alignment = Font(name=FONT, bold=True, color=color), Alignment(horizontal="center")
-
-row += 2
-section(ws, row, 8, "Volgende wedstrijden")
-for m in todo[:3]:
-    row += 1
-    ws.merge_cells(start_row=row, start_column=9, end_row=row, end_column=10)
-    line(ws, row, [8, 9, 11, 12], [to_date(m["datum"]), m["tegen"], m["tu"], f"ronde {m['ronde']}"],
-         {3: Font(name=FONT, color=GREY)})
-    ws.cell(row, 12).alignment = Alignment(horizontal="center")
-    ws.cell(row, 8).alignment = Alignment(horizontal="left")
-
-# --- Stand ---
-ws = new_sheet(f"Stand {DIV}", f"Stand Divisie {DIV}", [7, 32, 10, 9, 9, 9, 9, 12])
-table(ws, 4, ["#", "Team", "Gespeeld", "Winst", "Verlies", "Punten", "Gem.", "Strafpunten"],
-      [[num(v) for v in r] for r in stand[1:] if any(r)], left=(1,), fmt={6: "0.0"}, ours=lambda r: r[1] == TEAM)
-
-# --- Programma ---
-ws = new_sheet("Programma", "Programma & uitslagen", [7, 12, 30, 8, 11, 7, 60, 12])
-end = table(ws, 4, ["Ronde", "Datum", "Tegenstander", "T/U", "Uitslag (wij-zij)", "W/V", "Locatie", "Formulier"],
-            [[num(m["ronde"]), to_date(m["datum"]), m["tegen"], m["tu"], m.get("wijzij"), m["uitslag"] or None,
-              m.get("locatie", "").replace(" | ", ", ") or None, B + m["form"] if m["form"] else None] for m in matches],
-            left=(2, 6), fmt={1: "dd-mm-yyyy"}, wv=5, links=7)
-for r in ws.iter_rows(min_row=5, max_row=end):  # nog te spelen: grijs
-    if not r[6].value:
-        for c in r[1:]:
-            c.font = Font(name=FONT, color="A6A6A6")
-ws.cell(end + 2, 2, "b1 = bekerwedstrijd  ·  grijs = nog te spelen").font = Font(name=FONT, size=9, italic=True, color=GREY)
-
-# --- Wedstrijddetails ---
-ws = new_sheet("Wedstrijddetails", "Uitslagen per avond", [7, 12, 26, 34, 36, 36, 8, 8, 7])
-table(ws, 4, ["Ronde", "Datum", "Tegenstander", "Onderdeel", "Pirates 7", "Tegenstander(s)", "Legs wij", "Legs zij", "W/V"],
-      [[num(g["ronde"]), to_date(g["datum"]), g["tegen"], g["onderdeel"], g["wij"], g["zij"], g["legs_wij"],
-        g["legs_zij"], g["uitslag"]] for g in games],
-      left=(2, 3, 4, 5), fmt={1: "dd-mm-yyyy"}, band=lambda r: r[0], wv=8)
-
-# --- Spelers ---
-ws = new_sheet("Spelers", "Spelersstatistieken", [22, 16] + [8.5] * 21 + [12])
-sp_rows = []
-for s in spelers:
-    a = agg[s["naam"]]
-    p = lambda w, n: w / n if n else None
-    sp_rows.append([s["naam"], s["rol"] or "Speler", s["singles"], pct(s["winst"]), pct(s["site_singles_pct"]),
-                    pct(s["site_koppels_pct"]),
-                    a["s_gesp"], a["s_w"], a["s_gesp"] - a["s_w"], p(a["s_w"], a["s_gesp"]), a["s_lv"], a["s_lt"],
-                    a["k_gesp"], a["k_w"], a["k_gesp"] - a["k_w"], p(a["k_w"], a["k_gesp"]), a["k_lv"], a["k_lt"],
-                    a["rr_gesp"], a["rr_w"], a["rr_gesp"] - a["rr_w"], p(a["rr_w"], a["rr_gesp"]),
-                    sum("180" in b["prestatie"] for b in bijz if b["speler"] == s["naam"]),
-                    ", ".join(b["prestatie"].replace(" finish", "") for b in bijz
-                              if b["speler"] == s["naam"] and "finish" in b["prestatie"]) or None])
-end = table(ws, 4, ["Speler", "Rol", "Singles", "Winst%", "Singles%", "Koppels%",
-                    "Gesp.", "W", "V", "W%", "Legs +", "Legs −", "Gesp.", "W", "V", "W%", "Legs +", "Legs −",
-                    "Gesp.", "W", "V", "W%", "180's", "Finishes"], sp_rows, left=(0, 1),
-            fmt={3: "0%", 4: "0%", 5: "0%", 9: "0%", 15: "0%", 21: "0%"},
-            groups=[("Speler", 0, 1), ("Competitie (site)", 2, 5), ("Singles (incl. beker)", 6, 11),
-                    ("Koppels (incl. beker)", 12, 17), ("Round robin 301", 18, 21), ("Bijzonder", 22, 23)])
-ws.cell(end + 2, 2, "Blokken 'incl. beker' zijn berekend uit de wedstrijdformulieren; lege percentages staan niet op de site.") \
-    .font = Font(name=FONT, size=9, italic=True, color=GREY)
-
-# --- Persoonlijk klassement ---
-ws = new_sheet("Persoonlijk klassement", "Persoonlijk klassement", [13, 26, 10, 9, 9, 10])
-ws["B3"] = (f"Positie tussen alle spelers van divisie {DIV} (1e = beste). Alleen competitie, zonder beker. "
-            "Bij gelijk winstpercentage staat wie meer partijen speelde hoger.")
-ws["B3"].font = Font(name=FONT, size=10, color=GREY)
-row = 5
+sheet("Info", ["Veld", "Waarde"],
+      [["Team", TEAM], ["Seizoen", S], ["Divisie", DIV], ["Speellocatie", locatie.replace(" | ", ", ")],
+       ["Captain", role("Captain")], ["Reserve captain", role("Reserve captain")],
+       ["Bijgewerkt", NOW.strftime("%d-%m-%Y %H:%M")], ["Bron", f"{B}/web/team?d={D}&t={TEAM_ID}&s={S}"]])
+sheet("Stand", ["Positie", "Team", "Gespeeld", "Winst", "Verlies", "Punten", "Gemiddeld", "Strafpunten"],
+      [r for r in stand[1:] if any(r)])
+sheet("Programma", ["Ronde", "Datum", "Thuis", "Uit", "Tegenstander", "Thuis/Uit", "Punten wij", "Punten zij",
+                    "Uitslag", "Vrije week", "Locatie", "Wedstrijdformulier"],
+      [[m["ronde"], to_date(m["datum"]), m["thuis"], m["uit"], m["tegen"], m["tu"],
+        int(m["wijzij"].split(" - ")[0]) if m["score"] else None, int(m["wijzij"].split(" - ")[1]) if m["score"] else None,
+        m["uitslag"] or None, "ja" if m["vrij"] else None, m.get("locatie", "").replace(" | ", ", ") or None,
+        B + m["form"] if m["form"] else None] for m in matches])
+sheet("Partijen", ["Ronde", "Datum", "Tegenstander", "Onderdeel", "Type", "Pirates 7", "Tegenstander(s)",
+                   "Legs wij", "Legs zij", "Uitslag"],
+      [[g["ronde"], to_date(g["datum"]), g["tegen"], g["onderdeel"], kind(g["onderdeel"]), g["wij"], g["zij"],
+        g["legs_wij"], g["legs_zij"], g["uitslag"]] for g in games])
+sheet("Spelers", ["Speler", "Rol",
+                  "Singles gespeeld", "Singles gewonnen", "Singles legs voor", "Singles legs tegen",
+                  "Koppels gespeeld", "Koppels gewonnen", "Koppels legs voor", "Koppels legs tegen",
+                  "RR gespeeld", "RR gewonnen", "RR legs voor", "RR legs tegen",
+                  "180's", "Finishes", "Winst % singles (site)", "Winst % koppels (site)"],
+      [[s["naam"], s["rol"] or "Speler",
+        *(agg[s["naam"]][k + x] for k in ("s", "k", "rr") for x in ("_gesp", "_w", "_lv", "_lt")),
+        sum("180" in b["prestatie"] for b in bijz if b["speler"] == s["naam"]),
+        ", ".join(b["prestatie"].replace(" finish", "") for b in bijz
+                  if b["speler"] == s["naam"] and "finish" in b["prestatie"]) or None,
+        s["site_singles_pct"] or None, s["site_koppels_pct"] or None] for s in spelers])
 for label, tab in [("Singles", pk_single), ("Koppels", pk_koppel)]:
-    section(ws, row, 2, label, 6)
-    rows_ = [[f"#{num(r[0])}e van {pk_count(tab)} in {DIV}", r[1], num(r[3]), won(r), pct(r[6])] for r in ours_only(tab, 2)]
-    row = table(ws, row + 1, ["Positie", "Speler", "Gespeeld", "Gewonnen", "Winst%"], rows_,
-                left=(1,), fmt={4: "0%"}, frozen=False) + 2
+    sheet(f"Klassement {label.lower()}", ["Positie", "Spelers in klassement", "Speler", "Gespeeld", "Gewonnen", "Winst %"],
+          [[r[0], pk_count(tab), r[1], r[3], won(r), r[6]] for r in ours_only(tab, 2)])
+sheet("Bijzondere resultaten", ["Ronde", "Datum", "Speler", "Prestatie"],
+      [[b["ronde"], to_date(b["datum"]), b["speler"], b["prestatie"]] for b in bijz if b["team"] == TEAM])
+sheet("Klassering bijzonder", ["Lijst", "Positie", "Speler", "Aantal / waarde"],
+      [[name, r[0], r[1], r[4]] for name, tab in bijz_lists.items() for r in ours_only(tab, 2)])
 
-# --- Bijzondere resultaten ---
-ws = new_sheet("Bijzondere resultaten", "Bijzondere resultaten", [16, 12, 26, 16])
-section(ws, 4, 2, "Per wedstrijd", 4)
-end = table(ws, 5, ["Ronde", "Datum", "Speler", "Prestatie"],
-            [[num(b["ronde"]), to_date(b["datum"]), b["speler"], b["prestatie"]] for b in bijz if b["team"] == TEAM],
-            left=(2,), fmt={1: "dd-mm-yyyy"}, frozen=False)
-section(ws, end + 2, 2, f"Positie in klassement {DIV}", 4)
-table(ws, end + 3, ["Lijst", "Positie", "Speler", "Aantal / waarde"],
-      [[name, f"#{num(r[0])}e in {DIV}", r[1], num(r[4])] for name, tab in bijz_lists.items() for r in ours_only(tab, 2)], left=(0, 2), frozen=False)
-
-wb.active = 0
-site = Path("site")
-site.mkdir(exist_ok=True)
 wb.save(site / "pirates7-resultaten.xlsx")  # download op de website
 try:
     wb.save(OUT)
@@ -415,8 +246,6 @@ except PermissionError:
     print(f"LET OP: '{OUT}' staat open in Excel en is niet bijgewerkt. Sluit hem en draai opnieuw.")
 
 # ---------- Dashboard (HTML) ----------
-kind = lambda o: "RR" if o.startswith("RR") else "Single" if o.startswith(("Single", "Singel")) else \
-    "Koppel" if o.startswith("Koppel") else "Team"
 dash = dict(
     team=TEAM, div=DIV, seizoen=S, bijgewerkt=NOW.strftime("%d-%m-%Y %H:%M"), locatie=locatie.replace(" | ", ", "),
     captain=role("Captain"), rc=role("Reserve captain"), bron=f"{B}/web/team?d={D}&t={TEAM_ID}&s={S}",
@@ -445,7 +274,10 @@ dash = dict(
 )
 tpl = (Path(__file__).parent / "dashboard_template.html").read_text(encoding="utf-8")
 data = json.dumps(dash, ensure_ascii=False).replace("</", "<\\/")
-(site / "index.html").write_text(tpl.replace("/*DATA*/null", data), encoding="utf-8")
+html = tpl.replace("/*DATA*/null", data)
 for f in (Path(__file__).parent / "web").iterdir():
     shutil.copy(f, site / f.name)
+    # versienummer achter elk bestand, zodat browsers na een wijziging nooit een oude kopie tonen
+    html = html.replace(f'"{f.name}"', f'"{f.name}?v={hashlib.md5(f.read_bytes()).hexdigest()[:8]}"')
+(site / "index.html").write_text(html, encoding="utf-8")
 print("OK", TEAM, S, DIV, "-", len(matches), "wedstrijden,", len(games), "partijen,", len(spelers), "spelers")

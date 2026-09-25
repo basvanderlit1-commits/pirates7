@@ -425,7 +425,7 @@ const pos = (label, n) => {
 $("pk").innerHTML = `<thead><tr><th>Speler</th><th>Singles</th><th>Koppels</th></tr></thead><tbody>` +
   names.map(n => `<tr><td><b>${esc(n)}</b></td><td data-label="Singles">${pos("Singles", n)}</td><td data-label="Koppels">${pos("Koppels", n)}</td></tr>`).join("") + "</tbody>";
 
-$("foot").innerHTML = `<span>D.V. The Pirates · est. 1985</span><span>Bijgewerkt ${esc(D.bijgewerkt)}</span><a class="dl" href="pirates7-resultaten.xlsx" download>Excel downloaden</a><span>Thuis: ${esc(D.locatie)}</span><span>Bron: <a href="${esc(D.bron)}" target="_blank" rel="noopener">teambeheer.nl</a></span>`;
+$("foot").innerHTML = `<span>D.V. The Pirates · est. 1985</span><span>Bijgewerkt ${esc(D.bijgewerkt)}</span><a class="dl" href="pirates7-resultaten.xlsx" download>Data downloaden (Excel)</a><span>Thuis: ${esc(D.locatie)}</span><span>Bron: <a href="${esc(D.bron)}" target="_blank" rel="noopener">teambeheer.nl</a></span>`;
 
 // ---- telefoon: tabbladen onderin (onthouden via #hash) ----
 const VIEWS = ["overzicht", "stand", "spelers", "programma"];

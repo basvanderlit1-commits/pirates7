@@ -13,6 +13,7 @@ from datetime import date, datetime
 from zoneinfo import ZoneInfo
 from requests.adapters import HTTPAdapter, Retry
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.drawing.image import Image as XLImage
 from openpyxl.utils import get_column_letter
 
 B = "https://feeds.teambeheer.nl"
@@ -157,12 +158,12 @@ for t, name in [(1, "180ers"), (2, "Hoogste finishes"), (3, "Snelste leg"), (4, 
     bijz_lists[name] = rows(tab) if tab else [["(geen data)"]]
 
 # ---------- Excel ----------
-NAVY, BLUE, GOLD, GREY = "1F3864", "2F5597", "C9A227", "7F7F7F"
+NAVY, BLUE, GOLD, GREY = "222222", "7C1520", "BD202C", "7F7F7F"  # huisstijl D.V. The Pirates: antraciet + rood
 FONT = "Calibri"
 fill = lambda c: PatternFill("solid", fgColor=c)
-ZEBRA, OURS, TILE = fill("F2F5FA"), fill("FFF2CC"), fill("F2F5FA")
+ZEBRA, OURS, TILE = fill("F4F4F4"), fill("FBE4E6"), fill("F4F4F4")
 WV = {"W": (fill("E2F0D9"), "375623"), "V": (fill("FBE3E4"), "9C0006"), "G": (fill("FFF2CC"), "7F6000")}
-LINE = Side(style="thin", color="D9DEE8")
+LINE = Side(style="thin", color="E0E0E0")
 NOW = datetime.now(ZoneInfo("Europe/Amsterdam"))
 TODAY = NOW.strftime("%d-%m-%Y")
 wb = Workbook()
@@ -184,7 +185,7 @@ def pct(v):  # 33.3 / "33.3 %" -> 0.333 (Excel-percentage)
 def new_sheet(title, heading, widths):
     ws = wb.create_sheet(title)
     ws.sheet_view.showGridLines = False
-    ws.sheet_properties.tabColor = NAVY
+    ws.sheet_properties.tabColor = GOLD
     ws.column_dimensions["A"].width = 2  # marge
     for i, w in enumerate(widths, 2):
         ws.column_dimensions[get_column_letter(i)].width = w
@@ -297,6 +298,9 @@ for i, (label, value) in enumerate(tiles):
     for rr in (4, 5):
         ws.cell(rr, col).alignment = Alignment(horizontal="center", vertical="center")
 ws.row_dimensions[4].height, ws.row_dimensions[5].height = 22, 42
+logo = XLImage(Path(__file__).parent / "web" / "logo.png")
+logo.width = logo.height = 64
+ws.add_image(logo, "M1")
 
 section(ws, 8, 2, "Teaminformatie")
 info = [("Divisie", f"Divisie {DIV}"), ("Speellocatie", locatie.replace(" | ", ", ")), ("Captain", role("Captain")),

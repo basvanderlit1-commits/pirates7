@@ -1,11 +1,15 @@
-name: Dashboard bijwerken
+name: Pirates 7 bijwerken
+
+# De code staat in github.com/basvanderlit1-commits/dv-the-pirates (clubsite).
+# Deze repo bouwt daarmee alleen het dashboard van Pirates 7, zodat de oude link blijft werken.
+# Meldingen (ook pirates7-dbmn-uitslagen) verstuurt de clubsite; hier niet, anders komen ze dubbel.
 
 on:
   schedule:
-    - cron: "0 5 * * *"   # elke ochtend (07:00 NL zomertijd)
-    - cron: "30 22 * * *" # elke avond na de speelavond
-    - cron: "30 23 * * *" # en nog een keer later op de avond
-  workflow_dispatch:       # handmatig: tab Actions > Run workflow
+    - cron: "10 5 * * *"
+    - cron: "40 22 * * *"
+    - cron: "40 23 * * *"
+  workflow_dispatch:
   push:
     branches: [main]
 
@@ -13,6 +17,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write           # keep-alive: workflow opnieuw inschakelen
 
 concurrency:
   group: pages
@@ -21,20 +26,23 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          repository: basvanderlit1-commits/dv-the-pirates
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - name: Vorige stand ophalen (voor meldingen bij nieuwe uitslagen)
-        run: curl -sf https://basvanderlit1-commits.github.io/pirates7/data.json -o prev.json || true
-      - run: python scrape_pirates7.py
-        env:
-          MELDINGEN: aan
+      - run: python scrape.py --team "Pirates 7" --solo
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
+      - name: Keep-alive (GitHub schakelt geplande workflows uit na 60 dagen zonder commits)
+        run: gh workflow enable dashboard.yml --repo "${{ github.repository }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   deploy:
     needs: build

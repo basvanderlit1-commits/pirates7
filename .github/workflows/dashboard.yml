@@ -23,6 +23,10 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+env:
+  NTFY_BEHEER: dv-the-pirates-beheer-bf94f1f85a  # privé-topic: storingen, alleen voor de beheerder
+  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -53,3 +57,13 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  alarm:  # build of uitrol mislukt: seintje aan de beheerder (de site toont dan nog de vorige stand)
+    needs: [build, deploy]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - run: >
+          curl -sS -H "Title: Pirates 7-site bijwerken mislukt" -H "Priority: high" -H "Tags: rotating_light"
+          -H "Click: $RUN_URL" -d "De run is mislukt; de site toont nog de vorige stand. Tik voor het logboek."
+          "https://ntfy.sh/$NTFY_BEHEER"

@@ -1,14 +1,15 @@
 name: Pirates 7 bijwerken
 
 # De code staat in github.com/basvanderlit1-commits/dv-the-pirates (clubsite).
-# Deze repo bouwt daarmee alleen het dashboard van Pirates 7, zodat de oude link blijft werken.
-# Meldingen (ook pirates7-dbmn-uitslagen) verstuurt de clubsite; hier niet, anders komen ze dubbel.
+# Deze repo neemt de Pirates 7-pagina van de clubsite over (/dv-the-pirates/pirates-7/), zodat de oude link blijft
+# werken en beide altijd gelijk zijn. Meldingen (ook pirates7-dbmn-uitslagen) verstuurt de clubsite.
 
 on:
   schedule:
-    - cron: "10 5 * * *"
-    - cron: "40 22 * * *"
-    - cron: "40 23 * * *"
+    - cron: "15 5 * * *"              # elke ochtend, na de clubsite (05:00)
+    # speelavonden: elke 10 minuten, telkens kort na de check van de clubsite (UTC; 22:00-01:00 NL)
+    - cron: "8-58/10 20-23 * * *"
+    - cron: "8,18,28 0 * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -21,7 +22,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   NTFY_BEHEER: dv-the-pirates-beheer-bf94f1f85a  # privé-topic: storingen, alleen voor de beheerder
@@ -30,17 +31,44 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+    outputs:
+      veranderd: ${{ steps.kopie.outputs.veranderd }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: basvanderlit1-commits/dv-the-pirates
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install -r requirements.txt
-      - run: python scrape.py --team "Pirates 7" --solo
-      - uses: actions/upload-pages-artifact@v3
+      - name: Pirates 7-pagina van de clubsite overnemen
+        id: kopie
+        shell: python
+        run: |
+          import os, re, time, urllib.request
+          from pathlib import Path
+          BRON = "https://basvanderlit1-commits.github.io/dv-the-pirates/pirates-7/"
+          EIGEN = "https://basvanderlit1-commits.github.io/pirates7/"
+          def get(url):  # ?nc= omzeilt de cache van GitHub Pages (10 min)
+              with urllib.request.urlopen(f"{url}?nc={time.time():.0f}", timeout=30) as r:
+                  return r.read()
+          html = get(BRON + "index.html")
+          try:
+              oud = get(EIGEN + "index.html")
+          except Exception:
+              oud = b""
+          site = Path("site"); site.mkdir()
+          (site / "index.html").write_bytes(html)
+          naam = r'"([\w.-]+\.(?:css|js|png|webmanifest|xlsx|ics))(?:\?v=[0-9a-f]+)?"'  # alles waar de pagina naar verwijst
+          bestanden = set(re.findall(naam, html.decode()))
+          for f in sorted(bestanden):
+              (site / f).write_bytes(get(BRON + f))
+              if f.endswith(".webmanifest"):  # iconen uit het manifest
+                  for icoon in re.findall(naam, (site / f).read_text(encoding="utf-8")):
+                      (site / icoon).write_bytes(get(BRON + icoon))
+          handmatig = os.environ["GITHUB_EVENT_NAME"] != "schedule" or os.environ["SCHEMA"] == "15 5 * * *"
+          veranderd = html != oud or handmatig
+          print(len(bestanden) + 1, "bestanden overgenomen;", "veranderd" if html != oud else "ongewijzigd")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as o:
+              o.write(f"veranderd={'ja' if veranderd else 'nee'}\n")
+        env:
+          SCHEMA: ${{ github.event.schedule }}
+      - if: steps.kopie.outputs.veranderd == 'ja'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: site
       - name: Keep-alive (GitHub schakelt geplande workflows uit na 60 dagen zonder commits)
@@ -50,6 +78,7 @@ jobs:
 
   deploy:
     needs: build
+    if: needs.build.outputs.veranderd == 'ja'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -58,7 +87,7 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v4
 
-  alarm:  # build of uitrol mislukt: seintje aan de beheerder (de site toont dan nog de vorige stand)
+  alarm:  # overnemen of uitrol mislukt: seintje aan de beheerder (de site toont dan nog de vorige stand)
     needs: [build, deploy]
     if: failure()
     runs-on: ubuntu-latest
